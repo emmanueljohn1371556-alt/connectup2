@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConnectUp Profile</title>
+<style>
+  :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; --ok:#5fd394; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; --ok:#1a7f4b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding-bottom:70px; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  header h1 { font-size:1.15rem; margin:0; }
+  main { max-width:640px; margin:0 auto; padding:24px 18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .card h2 { margin:0 0 6px; font-size:1.3rem; }
+  .card h3 { margin:0 0 12px; font-size:1.05rem; }
+  .card p { margin:4px 0; color:var(--muted); }
+  .top { display:flex; align-items:center; gap:16px; }
+  .avatar { width:72px; height:72px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:600; flex-shrink:0; }
+  label { display:block; margin:12px 0 4px; font-size:.9rem; color:var(--muted); }
+  input[type=text], input[type=email] { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-size:1rem; }
+  input:disabled { opacity:.6; }
+  button { padding:10px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; margin-top:14px; }
+  button.ghost { background:none; color:var(--accent); margin-top:8px; padding:7px 12px; }
+  #logoutBtn { background:none; border:1px solid var(--danger); color:var(--danger); margin:0; padding:8px 14px; }
+  button:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  #profileMsg { min-height:1.2em; margin-top:10px; font-size:.9rem; }
+  #loading { text-align:center; color:var(--muted); padding:60px 0; }
+  #app { display:none; }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .tabbar a { flex:1; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.95rem; }
+  .tabbar a.active { color:var(--accent); font-weight:600; }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading…</div>
+
+<div id="app">
+  <header>
+    <h1>ConnectUp</h1>
+    <button id="logoutBtn">Log out</button>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="top">
+        <div id="avatarBox"></div>
+        <div>
+          <h2 id="welcome">Welcome</h2>
+          <p id="usernameLine"></p>
+          <p id="emailLine"></p>
+        </div>
+      </div>
+      <input id="avatarFile" type="file" accept="image/*" hidden>
+      <button id="avatarBtn" class="ghost">Change photo</button>
+    </div>
+
+    <div class="card">
+      <h3>Your profile</h3>
+      <label for="profName">Full name</label>
+      <input id="profName" type="text" autocomplete="name">
+      <label for="profUsername">Username</label>
+      <input id="profUsername" type="text" disabled>
+      <label for="profEmail">Email</label>
+      <input id="profEmail" type="email" disabled>
+      <button id="saveProfileBtn">Save changes</button>
+      <p id="profileMsg"></p>
+    </div>
+  </main>
+</div>
+
+<nav class="tabbar">
+  <a href="Feed.html">Feed</a>
+  <a href="Home.html" class="active">Profile</a>
+</nav>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut, updateProfile }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+  import { initializeFirestore, doc, getDoc, setDoc }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyASt_xJLUPi1pFcvN1ZicL1Gj5_x1IuXX8",
+  authDomain: "connectup-db617.firebaseapp.com",
+  projectId: "connectup-db617",
+  storageBucket: "connectup-db617.firebasestorage.app",
+  messagingSenderId: "174771443294",
+  appId: "1:174771443294:web:28dcb5d14491e717a286cf",
+  measurementId: "G-YMRMYF20D7"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  const $ = (id) => document.getElementById(id);
+  let currentUser = null;
+
+  function profileMessage(text, ok) {
+    $("profileMsg").textContent = text;
+    $("profileMsg").style.color = ok ? "var(--ok)" : "var(--danger)";
+  }
+
+  function renderAvatar(avatar, name) {
+    const box = $("avatarBox");
+    box.innerHTML = "";
+    if (avatar) {
+      const img = document.createElement("img");
+      img.className = "avatar";
+      img.src = avatar;
+      img.alt = "Profile photo";
+      box.appendChild(img);
+    } else {
+      const d = document.createElement("div");
+      d.className = "avatar";
+      d.textContent = (name || "?").charAt(0).toUpperCase();
+      box.appendChild(d);
+    }
+  }
+
+  function render(name, username, email, avatar) {
+    $("welcome").textContent = name || "Welcome";
+    $("usernameLine").textContent = username ? "@" + username : "";
+    $("emailLine").textContent = email;
+    $("profName").value = name || "";
+    $("profUsername").value = username || "";
+    $("profEmail").value = email;
+    renderAvatar(avatar, name);
+  }
+
+  // Crop to a square and shrink to 128x128 so it stays tiny
+  function fileToAvatar(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const s = Math.min(img.width, img.height);
+        const c = document.createElement("canvas");
+        c.width = c.height = 128;
+        c.getContext("2d").drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 128, 128);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", 0.7));
+      };
+      img.onerror = () => reject(new Error("bad image"));
+      img.src = url;
+    });
+  }
+
+  let state = { name: "", username: "", avatar: "" };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "index.html"; return; }
+    currentUser = user;
+
+    state.name = user.displayName || "";
+    state.username = localStorage.getItem("username") || "";
+
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        state.name = d.name || state.name;
+        state.username = d.username || state.username;
+        state.avatar = d.avatar || "";
+      }
+    } catch (e) { console.error("Could not load profile:", e); }
+
+    render(state.name, state.username, user.email, state.avatar);
+    $("loading").style.display = "none";
+    $("app").style.display = "block";
+  });
+
+  $("avatarBtn").onclick = () => $("avatarFile").click();
+
+  $("avatarFile").onchange = async () => {
+    const file = $("avatarFile").files[0];
+    if (!file) return;
+    try {
+      const avatar = await fileToAvatar(file);
+      await setDoc(doc(db, "users", currentUser.uid), { avatar }, { merge: true });
+      state.avatar = avatar;
+      renderAvatar(avatar, state.name);
+      profileMessage("Photo updated.", true);
+    } catch (e) {
+      profileMessage("Could not update photo.", false);
+    }
+  };
+
+  $("saveProfileBtn").onclick = async () => {
+    const name = $("profName").value.trim();
+    if (!name) return profileMessage("Enter your name.", false);
+    try {
+      await updateProfile(currentUser, { displayName: name });
+      await setDoc(doc(db, "users", currentUser.uid),
+        { name, email: currentUser.email }, { merge: true });
+      state.name = name;
+      render(name, state.username, currentUser.email, state.avatar);
+      profileMessage("Profile saved.", true);
+    } catch (e) {
+      profileMessage("Could not save: " + (e.code || e.message), false);
+    }
+  };
+
+  $("logoutBtn").onclick = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem("username");
+      window.location.href = "index.html";
+    } catch (e) { alert("Could not log out. Try again."); }
+  };
+</script>
+
+</body>
+</html>

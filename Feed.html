@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConnectUp feed</title>
+<style>
+  :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding-bottom:70px; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  header { display:flex; align-items:center; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+  header h1 { font-size:1.15rem; margin:0; }
+  main { max-width:640px; margin:0 auto; padding:18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  textarea, .cinput { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+  textarea { min-height:90px; resize:vertical; }
+  .row { display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+  #count { color:var(--muted); font-size:.85rem; }
+  button { padding:9px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  button:disabled { opacity:.5; cursor:default; }
+  .del { background:none; border:none; color:var(--danger); padding:4px 8px; font-size:.85rem; }
+  .pill { background:none; border:1px solid var(--border); color:var(--muted); padding:5px 12px; border-radius:20px; font-size:.85rem; margin:10px 8px 0 0; }
+  .pill.on { border-color:var(--danger); color:var(--danger); }
+  button:focus-visible, textarea:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .head { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+  .av { width:38px; height:38px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex-shrink:0; }
+  .who { flex:1; min-width:0; }
+  .author { font-weight:600; }
+  .handle, .time { color:var(--muted); font-size:.85rem; }
+  .text { white-space:pre-wrap; word-wrap:break-word; line-height:1.45; }
+  .comments { margin-top:12px; border-top:1px solid var(--border); padding-top:10px; }
+  .comment { padding:6px 0; font-size:.92rem; }
+  .comment b { font-weight:600; }
+  .crow { display:flex; gap:8px; margin-top:8px; }
+  #status { min-height:1.2em; font-size:.9rem; color:var(--danger); margin-top:8px; }
+  #empty, #loading { text-align:center; color:var(--muted); padding:40px 0; }
+  #app { display:none; }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .tabbar a { flex:1; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.95rem; }
+  .tabbar a.active { color:var(--accent); font-weight:600; }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading…</div>
+
+<div id="app">
+  <header><h1>ConnectUp</h1></header>
+  <main>
+    <div class="card">
+      <textarea id="postText" maxlength="280" placeholder="What's on your mind?"></textarea>
+      <div class="row">
+        <span id="count">0 / 280</span>
+        <button id="postBtn">Post</button>
+      </div>
+      <div id="status"></div>
+    </div>
+    <div id="feed"></div>
+    <div id="empty" style="display:none">No posts yet. Be the first!</div>
+  </main>
+</div>
+
+<nav class="tabbar">
+  <a href="Feed.html" class="active">Feed</a>
+  <a href="Home.html">Profile</a>
+</nav>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+  import { initializeFirestore, collection, addDoc, deleteDoc, doc, getDoc,
+           query, orderBy, limit, onSnapshot, updateDoc, arrayUnion, arrayRemove }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyASt_xJLUPi1pFcvN1ZicL1Gj5_x1IuXX8",
+  authDomain: "connectup-db617.firebaseapp.com",
+  projectId: "connectup-db617",
+  storageBucket: "connectup-db617.firebasestorage.app",
+  messagingSenderId: "174771443294",
+  appId: "1:174771443294:web:28dcb5d14491e717a286cf",
+  measurementId: "G-YMRMYF20D7"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  const $ = (id) => document.getElementById(id);
+
+  let me = null;
+  let started = false;
+  const openPosts = new Set();
+  let commentUnsubs = [];
+
+  function timeAgo(ms) {
+    if (!ms) return "just now";
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return new Date(ms).toLocaleDateString();
+  }
+
+  function avatarEl(avatar, name) {
+    if (avatar) {
+      const img = document.createElement("img");
+      img.className = "av";
+      img.src = avatar;
+      img.alt = "";
+      return img;
+    }
+    const d = document.createElement("div");
+    d.className = "av";
+    d.textContent = (name || "?").charAt(0).toUpperCase();
+    return d;
+  }
+
+  function buildComments(postId) {
+    const box = document.createElement("div");
+    box.className = "comments";
+
+    const list = document.createElement("div");
+    const row = document.createElement("div");
+    row.className = "crow";
+    const input = document.createElement("input");
+    input.className = "cinput";
+    input.maxLength = 200;
+    input.placeholder = "Write a comment…";
+    const send = document.createElement("button");
+    send.textContent = "Send";
+    row.append(input, send);
+    box.append(list, row);
+
+    send.onclick = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      send.disabled = true;
+      try {
+        await addDoc(collection(db, "posts", postId, "comments"), {
+          uid: me.uid, name: me.name, username: me.username,
+          text, createdAt: Date.now()
+        });
+        input.value = "";
+      } catch (e) { alert("Could not comment: " + (e.code || e.message)); }
+      send.disabled = false;
+    };
+
+    const q = query(collection(db, "posts", postId, "comments"),
+                    orderBy("createdAt", "asc"), limit(50));
+    commentUnsubs.push(onSnapshot(q, (snap) => {
+      list.innerHTML = "";
+      snap.forEach((d) => {
+        const c = d.data();
+        const line = document.createElement("div");
+        line.className = "comment";
+        const b = document.createElement("b");
+        b.textContent = (c.name || c.username || "User") + " ";
+        const t = document.createElement("span");
+        t.textContent = c.text;
+        line.append(b, t);
+        if (c.uid === me.uid) {
+          const x = document.createElement("button");
+          x.className = "del";
+          x.textContent = "✕";
+          x.onclick = () => deleteDoc(doc(db, "posts", postId, "comments", d.id)).catch(() => alert("Could not delete."));
+          line.appendChild(x);
+        }
+        list.appendChild(line);
+      });
+    }));
+    return box;
+  }
+
+  function renderPost(id, p) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const head = document.createElement("div");
+    head.className = "head";
+    const who = document.createElement("div");
+    who.className = "who";
+    const author = document.createElement("span");
+    author.className = "author";
+    author.textContent = p.name || p.username || "User";
+    const handle = document.createElement("span");
+    handle.className = "handle";
+    handle.textContent = p.username ? "  @" + p.username : "";
+    const time = document.createElement("div");
+    time.className = "time";
+    time.textContent = timeAgo(p.createdAt);
+    who.append(author, handle, time);
+    head.append(avatarEl(p.avatar, p.name || p.username), who);
+
+    if (p.uid === me.uid) {
+      const del = document.createElement("button");
+      del.className = "del";
+      del.textContent = "Delete";
+      del.onclick = async () => {
+        if (!confirm("Delete this post?")) return;
+        try { await deleteDoc(doc(db, "posts", id)); }
+        catch (e) { alert("Could not delete."); }
+      };
+      head.appendChild(del);
+    }
+
+    const text = document.createElement("div");
+    text.className = "text";
+    text.textContent = p.text;
+
+    const likes = p.likedBy || [];
+    const liked = likes.includes(me.uid);
+    const likeBtn = document.createElement("button");
+    likeBtn.className = "pill" + (liked ? " on" : "");
+    likeBtn.textContent = (liked ? "♥ " : "♡ ") + likes.length;
+    likeBtn.onclick = async () => {
+      try {
+        await updateDoc(doc(db, "posts", id), {
+          likedBy: liked ? arrayRemove(me.uid) : arrayUnion(me.uid)
+        });
+      } catch (e) { alert("Like failed: " + (e.code || e.message)); }
+    };
+
+    const cBtn = document.createElement("button");
+    cBtn.className = "pill";
+    cBtn.textContent = "💬 Comments";
+    let cBox = null;
+    const toggle = () => {
+      if (cBox) {
+        cBox.remove(); cBox = null; openPosts.delete(id);
+      } else {
+        cBox = buildComments(id); card.appendChild(cBox); openPosts.add(id);
+      }
+    };
+    cBtn.onclick = toggle;
+
+    card.append(head, text, likeBtn, cBtn);
+    if (openPosts.has(id)) { cBox = buildComments(id); card.appendChild(cBox); }
+    return card;
+  }
+
+  function startfeed() {
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(50));
+    onSnapshot(q, (snap) => {
+      gotData = true;
+      $("status").textContent = "";
+      commentUnsubs.forEach((u) => u());
+      commentUnsubs = [];
+      const feed = $("feed");
+      feed.innerHTML = "";
+      snap.forEach((d) => feed.appendChild(renderPost(d.id, d.data())));
+      $("empty").style.display = snap.empty ? "block" : "none";
+    }, (err) => {
+      $("status").textContent = "Could not load posts: " + err.code;
+    });
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "index.html"; return; }
+
+    let name = user.displayName || "";
+    let username = localStorage.getItem("username") || "";
+    let avatar = "";
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        name = d.name || name;
+        username = d.username || username;
+        avatar = d.avatar || "";
+      }
+    } catch (e) { console.error(e); }
+
+    me = { uid: user.uid, name, username, avatar };
+    $("loading").style.display = "none";
+    $("app").style.display = "block";
+    if (!started) { started = true; startFeed(); }
+  });
+
+  $("postText").addEventListener("input", () => {
+    $("count").textContent = $("postText").value.length + " / 280";
+  });
+
+  $("postBtn").onclick = async () => {
+    const text = $("postText").value.trim();
+    $("status").textContent = "";
+    if (!text) { $("status").textContent = "Write something first."; return; }
+    $("postBtn").disabled = true;
+    try {
+      await addDoc(collection(db, "posts"), {
+        uid: me.uid, name: me.name, username: me.username,
+        avatar: me.avatar || "", text, likedBy: [], createdAt: Date.now()
+      });
+      $("postText").value = "";
+      $("count").textContent = "0 / 280";
+    } catch (e) {
+      $("status").textContent = "Could not post: " + (e.code || e.message);
+    }
+    $("postBtn").disabled = false;
+  };
+</script>
+
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ConnectUp</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial;
+    background: linear-gradient(135deg, blue, purple, deeppink);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    background: white;
+    width: 88%;
+    max-width: 400px;
+    padding: 25px;
+    border-radius: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: purple;
+}
+
+input {
+    width: 95%;
+    padding: 13px 2%;
+    margin: 8px 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(90deg, blue, purple, deeppink);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    margin-top: 12px;
+}
+
+.switch {
+    text-align: center;
+    margin-top: 20px;
+}
+
+span {
+    color: purple;
+    cursor: pointer;
+}
+
+#message {
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>ConnectUp</h1>
+<p style="text-align:center">
+Connect. Share. Discover.
+</p>
+
+<div id="register">
+
+<h3>Create Account</h3>
+
+<input id="name" placeholder="Full Name">
+
+<input id="username" placeholder="Username">
+
+<input id="email" type="email" placeholder="Email">
+
+<input id="password" type="password"
+placeholder="Create Password">
+
+<button id="registerBtn">Create Account</button>
+
+<div class="switch">
+Already registered?
+<span id="showLogin">Login</span>
+</div>
+
+</div>
+
+<div id="login" hidden>
+
+<h3>Welcome Back!</h3>
+
+<input id="loginEmail" type="email"
+placeholder="Email Address">
+
+<input id="loginPassword" type="password"
+placeholder="Password">
+
+<button id="loginBtn">Login</button>
+
+<div class="switch">
+  <span id="forgotPassword">Forgot password?</span><br>
+New user?
+<span id="showRegister">Register</span>
+</div>
+
+</div>
+
+<p id="message"></p>
+
+</div>
+
+<script type="module">
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+
+import {
+    getAuth,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    updateProfile,
+    onAuthStateChanged,
+  sendPasswordResetEmail
+}
+from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+import { initializeFirestore, doc, setDoc, getDoc }
+from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+// ADD YOUR FIREBASE CONFIGURATION HERE
+
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyASt_xJLUPi1pFcvN1ZicL1Gj5_x1IuXX8",
+  authDomain: "connectup-db617.firebaseapp.com",
+  projectId: "connectup-db617",
+  storageBucket: "connectup-db617.firebasestorage.app",
+  messagingSenderId: "174771443294",
+  appId: "1:174771443294:web:28dcb5d14491e717a286cf",
+  measurementId: "G-YMRMYF20D7"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+const message = document.getElementById("message");
+
+document.getElementById("showLogin").onclick = () => {
+    document.getElementById("register").hidden = true;
+    document.getElementById("login").hidden = false;
+    message.textContent = "";
+};
+
+document.getElementById("showRegister").onclick = () => {
+    document.getElementById("login").hidden = true;
+    document.getElementById("register").hidden = false;
+    message.textContent = "";
+};
+
+// CREATE ACCOUNT
+
+document.getElementById("registerBtn").onclick =
+async function() {
+
+    const name = document.getElementById("name").value.trim();
+    const username = document.getElementById("username").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!name || !username || !email || !password) {
+        message.textContent = "Complete all fields.";
+        return;
+    }
+
+    if (password.length < 6) {
+        message.textContent = "Password must be at least 6 characters.";
+        return;
+    }
+try {
+        const uname = username.toLowerCase();
+
+        message.style.color = "black";
+        message.textContent = "Checking username...";
+
+        const taken = await getDoc(doc(db, "usernames", uname));
+        if (taken.exists()) {
+            message.style.color = "red";
+            message.textContent = "That username is already taken.";
+            return;
+        }
+
+        message.textContent = "Creating account...";
+        const result = await createUserWithEmailAndPassword(
+            auth, email, password
+        );
+
+        await updateProfile(result.user, { displayName: name });
+
+        await setDoc(doc(db, "users", result.user.uid), {
+            name, username, email, createdAt: Date.now()
+        });
+        await setDoc(doc(db, "usernames", uname), {
+            uid: result.user.uid
+        });
+
+        localStorage.setItem("username", username);
+        message.style.color = "green";
+        message.textContent = "Account created! Redirecting...";
+        setTimeout(() => window.location.href = "Feed.html", 1000);
+
+    } catch (error) {
+        message.style.color = "red";
+        message.textContent = (error.code || "error") + " | " + error.message;
+    }
+
+};
+
+// LOGIN
+
+document.getElementById("loginBtn").onclick =
+async function() {
+
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    try {
+
+        await signInWithEmailAndPassword(
+            auth, email, password
+        );
+
+        window.location.href = "Feed.html";
+
+    } catch(error) {
+        message.style.color = "red";
+        message.textContent = friendlyError(error.code);
+    }
+
+};
+
+// CHECK LOGIN STATUS
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        console.log("Logged in:", user.email);
+    }
+});
+// FORGOT PASSWORD
+document.getElementById("forgotPassword").onclick = async function() {
+    const email = document.getElementById("loginEmail").value.trim();
+    message.style.color = "red";
+    if (!email) { message.textContent = "Type your email above first."; return; }
+    try {
+        await sendPasswordResetEmail(auth, email);
+        message.style.color = "green";
+        message.textContent = "Reset link sent. Check your inbox and spam.";
+    } catch (error) {
+        message.textContent = friendlyError(error.code);
+    }
+};
+
+// READABLE ERRORS
+function friendlyError(code) {
+    const errors = {
+        "auth/email-already-in-use": "That email is already registered.",
+        "auth/invalid-email": "Invalid email address.",
+        "auth/weak-password": "Password must be at least 6 characters.",
+        "auth/invalid-credential": "Wrong email or password.",
+        "auth/too-many-requests": "Too many attempts. Try again later.",
+        "auth/network-request-failed": "Network error. Check your connection."
+    };
+    return errors[code] || "Something went wrong. Try again.";
+}
+</script>
+
+</body>
+</html>
