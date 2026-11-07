@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConnectUp Public Profile</title>
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t);var a=localStorage.getItem("accent");if(a)document.documentElement.style.setProperty("--accent",a);}catch(e){}</script>
+<style>
+  :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  }
+  :root[data-theme="light"] { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  :root[data-theme="dark"] { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding-bottom:70px; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+  header h1 { font-size:1.15rem; margin:0; }
+  main { max-width:640px; margin:0 auto; padding:18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  textarea, .cinput { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+  button { padding:9px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  button.ghost { background:none; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .av { width:42px; height:42px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex-shrink:0; }
+  .muted, .handle, .time { color:var(--muted); font-size:.85rem; }
+  .author { font-weight:600; }
+  .rowline { display:flex; gap:12px; align-items:center; }
+  .grow { flex:1; min-width:0; }
+  #loading, .emptymsg { text-align:center; color:var(--muted); padding:40px 0; }
+  #app { display:none; }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.72rem; }
+  .tabbar a.active { color:var(--accent); font-weight:600; }
+  .badge { position:absolute; top:6px; left:calc(50% + 8px); background:var(--danger); color:#fff; border-radius:10px; font-size:.65rem; padding:1px 5px; display:none; }
+
+  .top { display:flex; align-items:center; gap:16px; }
+  .av.big { width:84px; height:84px; font-size:2rem; }
+  .stats { display:flex; gap:22px; margin-top:10px; }
+  .stats b { display:block; font-size:1.1rem; }
+  .btnrow { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  a.btn { border:1px solid var(--accent); color:var(--accent); border-radius:8px; text-decoration:none; padding:9px 16px; font-size:.95rem; }
+  button.on { background:none; color:var(--muted); border-color:var(--border); }
+  .postimg { max-width:100%; border-radius:10px; margin-top:10px; display:block; }
+  .text { white-space:pre-wrap; word-wrap:break-word; line-height:1.45; }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading…</div>
+
+<div id="app">
+  <header><h1 id="ptitle">Profile</h1></header>
+  <main>
+    <div class="card" id="pcard">
+      <div class="top">
+        <div id="pav"></div>
+        <div class="grow">
+          <h2 style="margin:0" id="pname"></h2>
+          <div class="muted" id="puser"></div>
+        </div>
+      </div>
+      <p id="pbio" style="white-space:pre-wrap"></p>
+      <div class="stats"><div><b id="pposts">0</b><span class="muted">Posts</span></div><div><b id="pfollowers">0</b><span class="muted">Followers</span></div><div><b id="pfollowing">0</b><span class="muted">Following</span></div></div>
+      <div class="btnrow" id="pbtns"></div>
+    </div>
+    <div id="pfeed"></div>
+    <div id="pnone" class="emptymsg" style="display:none">No posts yet.</div>
+  </main>
+</div>
+
+<nav class="tabbar">
+  <a href="Feed.html">Feed</a>
+  <a href="Search.html">Search</a>
+  <a href="Groups.html">Groups</a>
+  <a href="Messages.html">Chat</a>
+  <a href="Alerts.html">Alerts<span class="badge" id="alertBadge"></span></a>
+  <a href="Home.html">Profile</a>
+</nav>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, updateProfile, signOut, EmailAuthProvider,
+           reauthenticateWithCredential, deleteUser }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+  import { initializeFirestore, collection, addDoc, deleteDoc, doc, getDoc, getDocs, setDoc,
+           updateDoc, query, where, orderBy, limit, onSnapshot, arrayUnion, arrayRemove }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyASt_xJLUPi1pFcvN1ZicL1Gj5_x1IuXX8",
+  authDomain: "connectup-db617.firebaseapp.com",
+  projectId: "connectup-db617",
+  storageBucket: "connectup-db617.firebasestorage.app",
+  messagingSenderId: "174771443294",
+  appId: "1:174771443294:web:28dcb5d14491e717a286cf",
+  measurementId: "G-YMRMYF20D7"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  const $ = (id) => document.getElementById(id);
+
+  function watchBadge(uid) {
+    const q = query(collection(db, "notifications"), where("to", "==", uid), where("read", "==", false));
+    onSnapshot(q, (s) => {
+      const b = document.getElementById("alertBadge");
+      if (!b) return;
+      b.textContent = s.size > 9 ? "9+" : s.size;
+      b.style.display = s.size ? "block" : "none";
+    }, () => {});
+  }
+
+  function avatarEl(avatar, name) {
+    if (avatar) {
+      const img = document.createElement("img");
+      img.className = "av"; img.src = avatar; img.alt = "";
+      return img;
+    }
+    const d = document.createElement("div");
+    d.className = "av";
+    d.textContent = (name || "?").charAt(0).toUpperCase();
+    return d;
+  }
+
+  async function loadMe(user) {
+    let name = user.displayName || "";
+    let username = localStorage.getItem("username") || "";
+    let avatar = "";
+    let blocked = [];
+    let bio = "";
+    try {
+      const s = await getDoc(doc(db, "users", user.uid));
+      if (s.exists()) {
+        const d = s.data();
+        name = d.name || name; username = d.username || username; avatar = d.avatar || "";
+        blocked = d.blocked || []; bio = d.bio || "";
+      }
+    } catch (e) { console.error(e); }
+    return { uid: user.uid, name, username, avatar, blocked, bio, email: user.email };
+  }
+
+  function notify(me, to, type, postId, text) {
+    if (!to || to === me.uid) return;
+    addDoc(collection(db, "notifications"), {
+      to, from: me.uid, fromName: me.name || me.username || "Someone",
+      type, postId: postId || "", text: text || "", createdAt: Date.now(), read: false
+    }).catch(() => {});
+  }
+
+  function timeAgo(ms) {
+    if (!ms) return "just now";
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return new Date(ms).toLocaleDateString();
+  }
+
+  let me = null;
+  async function load() {
+    const uid = new URLSearchParams(location.search).get("u") || me.uid;
+    let u = null;
+    try {
+      const s = await getDoc(doc(db, "users", uid));
+      if (s.exists()) u = s.data();
+    } catch (e) {}
+    if (!u) { $("pname").textContent = "User not found"; return; }
+    const isMe = uid === me.uid;
+    $("ptitle").textContent = isMe ? "My profile" : "Profile";
+    $("pname").textContent = u.name || u.username || "User";
+    $("puser").textContent = u.username ? "@" + u.username : "";
+    $("pbio").textContent = u.bio || "";
+    const a = avatarEl(u.avatar, u.name || u.username);
+    a.classList.add("big");
+    $("pav").innerHTML = "";
+    $("pav").appendChild(a);
+
+    try {
+      const [f1, f2] = await Promise.all([
+        getDocs(query(collection(db, "follows"), where("following", "==", uid))),
+        getDocs(query(collection(db, "follows"), where("follower", "==", uid)))
+      ]);
+      $("pfollowers").textContent = f1.size;
+      $("pfollowing").textContent = f2.size;
+    } catch (e) {}
+
+    const btns = $("pbtns");
+    btns.innerHTML = "";
+    if (isMe) {
+      const e = document.createElement("a");
+      e.className = "btn"; e.href = "Home.html"; e.textContent = "Edit profile";
+      btns.appendChild(e);
+    } else {
+      let isF = false;
+      try { isF = (await getDoc(doc(db, "follows", me.uid + "_" + uid))).exists(); } catch (e) {}
+      const fb = document.createElement("button");
+      fb.textContent = isF ? "Following" : "Follow";
+      if (isF) fb.className = "on";
+      fb.onclick = async () => {
+        fb.disabled = true;
+        try {
+          if (isF) await deleteDoc(doc(db, "follows", me.uid + "_" + uid));
+          else { await setDoc(doc(db, "follows", me.uid + "_" + uid), { follower: me.uid, following: uid, createdAt: Date.now() }); notify(me, uid, "follow", "", ""); }
+          load();
+        } catch (e) { alert("Could not update: " + (e.code || e.message)); fb.disabled = false; }
+      };
+      const mb = document.createElement("a");
+      mb.className = "btn"; mb.textContent = "Message"; mb.href = "Messages.html?to=" + encodeURIComponent(uid);
+      const blocked = me.blocked.includes(uid);
+      const bb = document.createElement("button");
+      bb.className = "ghost"; bb.textContent = blocked ? "Unblock" : "Block";
+      bb.onclick = async () => {
+        try {
+          await updateDoc(doc(db, "users", me.uid), { blocked: blocked ? arrayRemove(uid) : arrayUnion(uid) });
+          me.blocked = blocked ? me.blocked.filter((x) => x !== uid) : [...me.blocked, uid];
+          load();
+        } catch (e) { alert("Could not update block."); }
+      };
+      btns.append(fb, mb, bb);
+    }
+
+    const feed = $("pfeed");
+    feed.innerHTML = "";
+    if (me.blocked.includes(uid) && !isMe) { $("pnone").textContent = "You blocked this user."; $("pnone").style.display = "block"; return; }
+    try {
+      const snap = await getDocs(query(collection(db, "posts"), where("uid", "==", uid), limit(50)));
+      const posts = snap.docs.map((d) => d.data()).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
+      $("pposts").textContent = posts.length;
+      posts.forEach((p) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        const t = document.createElement("div");
+        t.className = "time"; t.textContent = timeAgo(p.createdAt);
+        const tx = document.createElement("div");
+        tx.className = "text"; tx.textContent = p.text || "";
+        card.append(t, tx);
+        if (p.image) { const im = document.createElement("img"); im.className = "postimg"; im.src = p.image; im.alt = "Photo"; card.appendChild(im); }
+        const l = document.createElement("div");
+        l.className = "muted"; l.style.marginTop = "8px"; l.textContent = "♥ " + (p.likedBy || []).length;
+        card.appendChild(l);
+        feed.appendChild(card);
+      });
+      $("pnone").textContent = "No posts yet.";
+      $("pnone").style.display = posts.length ? "none" : "block";
+    } catch (e) { $("pnone").textContent = "Could not load posts."; $("pnone").style.display = "block"; }
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "index.html"; return; }
+    me = await loadMe(user);
+    watchBadge(user.uid);
+    $("loading").style.display = "none";
+    $("app").style.display = "block";
+    load();
+  });
+</script>
+
+</body>
+</html>

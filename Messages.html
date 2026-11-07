@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConnectUp Chat</title>
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t);var a=localStorage.getItem("accent");if(a)document.documentElement.style.setProperty("--accent",a);}catch(e){}</script>
+<style>
+  :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  }
+  :root[data-theme="light"] { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  :root[data-theme="dark"] { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding-bottom:70px; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+  header h1 { font-size:1.15rem; margin:0; }
+  main { max-width:640px; margin:0 auto; padding:18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  textarea, .cinput { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+  button { padding:9px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  button.ghost { background:none; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .av { width:42px; height:42px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex-shrink:0; }
+  .muted, .handle, .time { color:var(--muted); font-size:.85rem; }
+  .author { font-weight:600; }
+  .rowline { display:flex; gap:12px; align-items:center; }
+  .grow { flex:1; min-width:0; }
+  #loading, .emptymsg { text-align:center; color:var(--muted); padding:40px 0; }
+  #app { display:none; }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.82rem; }
+  .tabbar a.active { color:var(--accent); font-weight:600; }
+  .badge { position:absolute; top:6px; left:calc(50% + 8px); background:var(--danger); color:#fff; border-radius:10px; font-size:.65rem; padding:1px 5px; display:none; }
+
+  .conv { display:flex; gap:12px; align-items:center; cursor:pointer; }
+  .last { color:var(--muted); font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .msgs { height:55vh; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:8px 0; }
+  .b { max-width:78%; padding:8px 12px; border-radius:14px; background:var(--surface); border:1px solid var(--border); word-wrap:break-word; white-space:pre-wrap; align-self:flex-start; }
+  .b.me { align-self:flex-end; background:var(--accent); color:#fff; border-color:var(--accent); }
+  .chead { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .sendrow { display:flex; gap:8px; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading…</div>
+
+<div id="app">
+  <header><h1>Chat</h1></header>
+  <main>
+    <div id="listView">
+      <div id="convs"></div>
+      <div id="noConvs" class="emptymsg" style="display:none">No chats yet. Find someone in Search and tap Message.</div>
+    </div>
+    <div id="chatView" style="display:none">
+      <div class="chead"><button class="ghost" id="backBtn">← Back</button><div id="chatName" class="author"></div></div>
+      <div id="chatMsgs" class="msgs"></div>
+      <div class="sendrow">
+        <input id="msgInput" class="cinput" maxlength="500" placeholder="Message…">
+        <button id="sendBtn">Send</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<nav class="tabbar">
+  <a href="Feed.html">Feed</a>
+  <a href="Search.html">Search</a>
+  <a href="Messages.html" class="active">Chat</a>
+  <a href="Alerts.html">Alerts<span class="badge" id="alertBadge"></span></a>
+  <a href="Home.html">Profile</a>
+</nav>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, updateProfile, signOut, EmailAuthProvider,
+           reauthenticateWithCredential, deleteUser }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+  import { initializeFirestore, collection, addDoc, deleteDoc, doc, getDoc, getDocs, setDoc,
+           updateDoc, query, where, orderBy, limit, onSnapshot, arrayUnion, arrayRemove }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyASt_xJLUPi1pFcvN1ZicL1Gj5_x1IuXX8",
+  authDomain: "connectup-db617.firebaseapp.com",
+  projectId: "connectup-db617",
+  storageBucket: "connectup-db617.firebasestorage.app",
+  messagingSenderId: "174771443294",
+  appId: "1:174771443294:web:28dcb5d14491e717a286cf",
+  measurementId: "G-YMRMYF20D7"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  const $ = (id) => document.getElementById(id);
+
+  function watchBadge(uid) {
+    const q = query(collection(db, "notifications"), where("to", "==", uid), where("read", "==", false));
+    onSnapshot(q, (s) => {
+      const b = document.getElementById("alertBadge");
+      if (!b) return;
+      b.textContent = s.size > 9 ? "9+" : s.size;
+      b.style.display = s.size ? "block" : "none";
+    }, () => {});
+  }
+
+  function avatarEl(avatar, name) {
+    if (avatar) {
+      const img = document.createElement("img");
+      img.className = "av"; img.src = avatar; img.alt = "";
+      return img;
+    }
+    const d = document.createElement("div");
+    d.className = "av";
+    d.textContent = (name || "?").charAt(0).toUpperCase();
+    return d;
+  }
+
+  async function loadMe(user) {
+    let name = user.displayName || "";
+    let username = localStorage.getItem("username") || "";
+    let avatar = "";
+    let blocked = [];
+    try {
+      const s = await getDoc(doc(db, "users", user.uid));
+      if (s.exists()) {
+        const d = s.data();
+        name = d.name || name; username = d.username || username; avatar = d.avatar || "";
+        blocked = d.blocked || [];
+      }
+    } catch (e) { console.error(e); }
+    return { uid: user.uid, name, username, avatar, blocked, email: user.email };
+  }
+
+  function notify(me, to, type, postId, text) {
+    if (!to || to === me.uid) return;
+    addDoc(collection(db, "notifications"), {
+      to, from: me.uid, fromName: me.name || me.username || "Someone",
+      type, postId: postId || "", text: text || "", createdAt: Date.now(), read: false
+    }).catch(() => {});
+  }
+
+  function timeAgo(ms) {
+    if (!ms) return "just now";
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return new Date(ms).toLocaleDateString();
+  }
+
+  let me = null, msgs = [], current = null;
+  const cache = new Map();
+  const convId = (a, b) => [a, b].sort().join("_");
+
+  async function getUser(uid) {
+    if (cache.has(uid)) return cache.get(uid);
+    let u = { uid, name: "User", username: "", avatar: "" };
+    try {
+      const s = await getDoc(doc(db, "users", uid));
+      if (s.exists()) {
+        const d = s.data();
+        u = { uid, name: d.name || d.username || "User", username: d.username || "", avatar: d.avatar || "" };
+      }
+    } catch (e) {}
+    cache.set(uid, u);
+    return u;
+  }
+
+  async function renderList() {
+    const last = new Map();
+    msgs.slice().sort((a, b) => b.createdAt - a.createdAt).forEach((m) => {
+      const other = m.from === me.uid ? m.to : m.from;
+      if (!last.has(other)) last.set(other, m);
+    });
+    const entries = [...last.entries()].filter(([uid]) => !me.blocked.includes(uid));
+    const people = await Promise.all(entries.map(([uid]) => getUser(uid)));
+    if (current) return;
+    const box = $("convs");
+    box.innerHTML = "";
+    entries.forEach(([uid, m], i) => {
+      const u = people[i];
+      const card = document.createElement("div");
+      card.className = "card conv";
+      const info = document.createElement("div");
+      info.className = "grow";
+      const n = document.createElement("div");
+      n.className = "author"; n.textContent = u.name;
+      const l = document.createElement("div");
+      l.className = "last";
+      l.textContent = (m.from === me.uid ? "You: " : "") + m.text;
+      info.append(n, l);
+      const t = document.createElement("div");
+      t.className = "time"; t.textContent = timeAgo(m.createdAt);
+      card.append(avatarEl(u.avatar, u.name), info, t);
+      card.onclick = () => openChat(uid);
+      box.appendChild(card);
+    });
+    $("noConvs").style.display = entries.length ? "none" : "block";
+  }
+
+  function renderChat() {
+    if (!current) return;
+    const id = convId(me.uid, current);
+    const box = $("chatMsgs");
+    box.innerHTML = "";
+    msgs.filter((m) => m.convId === id).sort((a, b) => a.createdAt - b.createdAt).forEach((m) => {
+      const d = document.createElement("div");
+      d.className = "b" + (m.from === me.uid ? " me" : "");
+      d.textContent = m.text;
+      box.appendChild(d);
+    });
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function openChat(uid) {
+    current = uid;
+    const u = await getUser(uid);
+    $("chatName").textContent = u.name + (u.username ? "  @" + u.username : "");
+    $("listView").style.display = "none";
+    $("chatView").style.display = "block";
+    history.replaceState(null, "", "Messages.html?to=" + encodeURIComponent(uid));
+    renderChat();
+  }
+
+  $("backBtn").onclick = () => {
+    current = null;
+    $("chatView").style.display = "none";
+    $("listView").style.display = "block";
+    history.replaceState(null, "", "Messages.html");
+    renderList();
+  };
+
+  async function sendMsg() {
+    const text = $("msgInput").value.trim();
+    if (!text || !current) return;
+    $("sendBtn").disabled = true;
+    try {
+      await addDoc(collection(db, "messages"), {
+        convId: convId(me.uid, current), participants: [me.uid, current],
+        from: me.uid, to: current, text, createdAt: Date.now()
+      });
+      $("msgInput").value = "";
+    } catch (e) { alert("Could not send: " + (e.code || e.message)); }
+    $("sendBtn").disabled = false;
+  }
+  $("sendBtn").onclick = sendMsg;
+  $("msgInput").addEventListener("keydown", (e) => { if (e.key === "Enter") sendMsg(); });
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "index.html"; return; }
+    me = await loadMe(user);
+    watchBadge(user.uid);
+    $("loading").style.display = "none";
+    $("app").style.display = "block";
+    onSnapshot(query(collection(db, "messages"), where("participants", "array-contains", me.uid), limit(500)), (s) => {
+      msgs = s.docs.map((d) => d.data());
+      if (current) renderChat(); else renderList();
+    }, (err) => { $("noConvs").textContent = "Could not load chats: " + err.code; $("noConvs").style.display = "block"; });
+    const to = new URLSearchParams(location.search).get("to");
+    if (to && to !== me.uid) openChat(to);
+  });
+</script>
+
+</body>
+</html>

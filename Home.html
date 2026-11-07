@@ -4,35 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ConnectUp Profile</title>
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t);var a=localStorage.getItem("accent");if(a)document.documentElement.style.setProperty("--accent",a);}catch(e){}</script>
 <style>
-  :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; --ok:#5fd394; }
+  :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
   @media (prefers-color-scheme: light) {
-    :root { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; --ok:#1a7f4b; }
+    :root:not([data-theme="dark"]) { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
   }
+  :root[data-theme="light"] { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  :root[data-theme="dark"] { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
   * { box-sizing: border-box; }
   body { margin:0; padding-bottom:70px; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
-  header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
   header h1 { font-size:1.15rem; margin:0; }
-  main { max-width:640px; margin:0 auto; padding:24px 18px; }
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
-  .card h2 { margin:0 0 6px; font-size:1.3rem; }
-  .card h3 { margin:0 0 12px; font-size:1.05rem; }
-  .card p { margin:4px 0; color:var(--muted); }
-  .top { display:flex; align-items:center; gap:16px; }
-  .avatar { width:72px; height:72px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:600; flex-shrink:0; }
-  label { display:block; margin:12px 0 4px; font-size:.9rem; color:var(--muted); }
-  input[type=text], input[type=email] { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-size:1rem; }
-  input:disabled { opacity:.6; }
-  button { padding:10px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; margin-top:14px; }
-  button.ghost { background:none; color:var(--accent); margin-top:8px; padding:7px 12px; }
-  #logoutBtn { background:none; border:1px solid var(--danger); color:var(--danger); margin:0; padding:8px 14px; }
-  button:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
-  #profileMsg { min-height:1.2em; margin-top:10px; font-size:.9rem; }
-  #loading { text-align:center; color:var(--muted); padding:60px 0; }
+  main { max-width:640px; margin:0 auto; padding:18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  textarea, .cinput { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+  button { padding:9px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  button.ghost { background:none; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .av { width:42px; height:42px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex-shrink:0; }
+  .muted, .handle, .time { color:var(--muted); font-size:.85rem; }
+  .author { font-weight:600; }
+  .rowline { display:flex; gap:12px; align-items:center; }
+  .grow { flex:1; min-width:0; }
+  #loading, .emptymsg { text-align:center; color:var(--muted); padding:40px 0; }
   #app { display:none; }
   .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
-  .tabbar a { flex:1; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.95rem; }
+  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.82rem; }
   .tabbar a.active { color:var(--accent); font-weight:600; }
+  .badge { position:absolute; top:6px; left:calc(50% + 8px); background:var(--danger); color:#fff; border-radius:10px; font-size:.65rem; padding:1px 5px; display:none; }
+
+  .top { display:flex; align-items:center; gap:16px; }
+  .av.big { width:72px; height:72px; font-size:1.8rem; }
+  label { display:block; margin:12px 0 4px; font-size:.9rem; color:var(--muted); }
+  h2, h3 { margin:0 0 8px; }
+  p.msg { min-height:1.2em; margin:8px 0 0; font-size:.9rem; }
+  .chips { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+  .chips button { background:none; color:var(--muted); border:1px solid var(--border); }
+  .chips button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .sw { width:34px; height:34px; border-radius:50%; padding:0; border:3px solid transparent; }
+  .sw.on { border-color:var(--text); }
+  .brow { display:flex; align-items:center; gap:10px; padding:6px 0; }
+  .danger { border-color:var(--danger); }
+  .dangerbtn { background:none; color:var(--danger); border-color:var(--danger); margin-top:10px; }
+  button.row2 { margin-top:12px; }
 </style>
 </head>
 <body>
@@ -40,49 +56,74 @@
 <div id="loading">Loading…</div>
 
 <div id="app">
-  <header>
-    <h1>ConnectUp</h1>
-    <button id="logoutBtn">Log out</button>
-  </header>
-
+  <header><h1>Profile</h1><button class="ghost" id="logoutBtn">Log out</button></header>
   <main>
     <div class="card">
       <div class="top">
         <div id="avatarBox"></div>
-        <div>
+        <div class="grow">
           <h2 id="welcome">Welcome</h2>
-          <p id="usernameLine"></p>
-          <p id="emailLine"></p>
+          <div class="muted" id="usernameLine"></div>
+          <div class="muted" id="emailLine"></div>
         </div>
       </div>
       <input id="avatarFile" type="file" accept="image/*" hidden>
-      <button id="avatarBtn" class="ghost">Change photo</button>
+      <button class="ghost row2" id="avatarBtn">Change photo</button>
+      <p class="msg" id="photoMsg"></p>
     </div>
 
     <div class="card">
-      <h3>Your profile</h3>
+      <h3>Edit profile</h3>
       <label for="profName">Full name</label>
-      <input id="profName" type="text" autocomplete="name">
-      <label for="profUsername">Username</label>
-      <input id="profUsername" type="text" disabled>
-      <label for="profEmail">Email</label>
-      <input id="profEmail" type="email" disabled>
-      <button id="saveProfileBtn">Save changes</button>
-      <p id="profileMsg"></p>
+      <input id="profName" class="cinput" type="text" autocomplete="name">
+      <button class="row2" id="saveNameBtn">Save name</button>
+      <label for="newUsername">Username (letters, numbers, _ and . only)</label>
+      <input id="newUsername" class="cinput" type="text" maxlength="20" autocomplete="username">
+      <button class="row2" id="saveUserBtn">Change username</button>
+      <p class="msg" id="profMsg"></p>
+    </div>
+
+    <div class="card">
+      <h3>Appearance</h3>
+      <div class="muted">Theme</div>
+      <div class="chips" id="themeChips">
+        <button data-theme="auto">Auto</button>
+        <button data-theme="dark">Dark</button>
+        <button data-theme="light">Light</button>
+      </div>
+      <div class="muted" style="margin-top:14px">Accent colour</div>
+      <div class="chips" id="accentChips"></div>
+    </div>
+
+    <div class="card">
+      <h3>Blocked users</h3>
+      <div id="blockedList" class="muted">No blocked users.</div>
+    </div>
+
+    <div class="card danger">
+      <h3>Delete account</h3>
+      <div class="muted">Removes your profile, username, posts, follows and alerts. Messages you sent stay with the people you sent them to. This cannot be undone.</div>
+      <button class="dangerbtn" id="deleteBtn">Delete my account</button>
+      <p class="msg" id="delMsg"></p>
     </div>
   </main>
 </div>
 
 <nav class="tabbar">
   <a href="Feed.html">Feed</a>
+  <a href="Search.html">Search</a>
+  <a href="Messages.html">Chat</a>
+  <a href="Alerts.html">Alerts<span class="badge" id="alertBadge"></span></a>
   <a href="Home.html" class="active">Profile</a>
 </nav>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signOut, updateProfile }
+  import { getAuth, onAuthStateChanged, updateProfile, signOut, EmailAuthProvider,
+           reauthenticateWithCredential, deleteUser }
     from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
-  import { initializeFirestore, doc, getDoc, setDoc }
+  import { initializeFirestore, collection, addDoc, deleteDoc, doc, getDoc, getDocs, setDoc,
+           updateDoc, query, where, orderBy, limit, onSnapshot, arrayUnion, arrayRemove }
     from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -99,41 +140,79 @@
   const auth = getAuth(app);
   const db = initializeFirestore(app, { experimentalForceLongPolling: true });
   const $ = (id) => document.getElementById(id);
-  let currentUser = null;
 
-  function profileMessage(text, ok) {
-    $("profileMsg").textContent = text;
-    $("profileMsg").style.color = ok ? "var(--ok)" : "var(--danger)";
+  function watchBadge(uid) {
+    const q = query(collection(db, "notifications"), where("to", "==", uid), where("read", "==", false));
+    onSnapshot(q, (s) => {
+      const b = document.getElementById("alertBadge");
+      if (!b) return;
+      b.textContent = s.size > 9 ? "9+" : s.size;
+      b.style.display = s.size ? "block" : "none";
+    }, () => {});
   }
 
-  function renderAvatar(avatar, name) {
-    const box = $("avatarBox");
-    box.innerHTML = "";
+  function avatarEl(avatar, name) {
     if (avatar) {
       const img = document.createElement("img");
-      img.className = "avatar";
-      img.src = avatar;
-      img.alt = "Profile photo";
-      box.appendChild(img);
-    } else {
-      const d = document.createElement("div");
-      d.className = "avatar";
-      d.textContent = (name || "?").charAt(0).toUpperCase();
-      box.appendChild(d);
+      img.className = "av"; img.src = avatar; img.alt = "";
+      return img;
     }
+    const d = document.createElement("div");
+    d.className = "av";
+    d.textContent = (name || "?").charAt(0).toUpperCase();
+    return d;
   }
 
-  function render(name, username, email, avatar) {
-    $("welcome").textContent = name || "Welcome";
-    $("usernameLine").textContent = username ? "@" + username : "";
-    $("emailLine").textContent = email;
-    $("profName").value = name || "";
-    $("profUsername").value = username || "";
-    $("profEmail").value = email;
-    renderAvatar(avatar, name);
+  async function loadMe(user) {
+    let name = user.displayName || "";
+    let username = localStorage.getItem("username") || "";
+    let avatar = "";
+    let blocked = [];
+    try {
+      const s = await getDoc(doc(db, "users", user.uid));
+      if (s.exists()) {
+        const d = s.data();
+        name = d.name || name; username = d.username || username; avatar = d.avatar || "";
+        blocked = d.blocked || [];
+      }
+    } catch (e) { console.error(e); }
+    return { uid: user.uid, name, username, avatar, blocked, email: user.email };
   }
 
-  // Crop to a square and shrink to 128x128 so it stays tiny
+  function notify(me, to, type, postId, text) {
+    if (!to || to === me.uid) return;
+    addDoc(collection(db, "notifications"), {
+      to, from: me.uid, fromName: me.name || me.username || "Someone",
+      type, postId: postId || "", text: text || "", createdAt: Date.now(), read: false
+    }).catch(() => {});
+  }
+
+  function timeAgo(ms) {
+    if (!ms) return "just now";
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return new Date(ms).toLocaleDateString();
+  }
+
+  let me = null;
+  const cache = new Map();
+  const say = (id, text, ok) => { const e = $(id); e.textContent = text; e.style.color = ok ? "#5fd394" : "var(--danger)"; };
+
+  function renderHeader() {
+    $("welcome").textContent = me.name || "Welcome";
+    $("usernameLine").textContent = me.username ? "@" + me.username : "";
+    $("emailLine").textContent = me.email || "";
+    $("profName").value = me.name || "";
+    $("newUsername").value = me.username || "";
+    const box = $("avatarBox");
+    box.innerHTML = "";
+    const a = avatarEl(me.avatar, me.name || me.username);
+    a.classList.add("big");
+    box.appendChild(a);
+  }
+
   function fileToAvatar(file) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -151,59 +230,126 @@
     });
   }
 
-  let state = { name: "", username: "", avatar: "" };
-
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) { window.location.href = "index.html"; return; }
-    currentUser = user;
-
-    state.name = user.displayName || "";
-    state.username = localStorage.getItem("username") || "";
-
-    try {
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (snap.exists()) {
-        const d = snap.data();
-        state.name = d.name || state.name;
-        state.username = d.username || state.username;
-        state.avatar = d.avatar || "";
-      }
-    } catch (e) { console.error("Could not load profile:", e); }
-
-    render(state.name, state.username, user.email, state.avatar);
-    $("loading").style.display = "none";
-    $("app").style.display = "block";
-  });
-
   $("avatarBtn").onclick = () => $("avatarFile").click();
-
   $("avatarFile").onchange = async () => {
-    const file = $("avatarFile").files[0];
-    if (!file) return;
+    const f = $("avatarFile").files[0];
+    if (!f) return;
     try {
-      const avatar = await fileToAvatar(file);
-      await setDoc(doc(db, "users", currentUser.uid), { avatar }, { merge: true });
-      state.avatar = avatar;
-      renderAvatar(avatar, state.name);
-      profileMessage("Photo updated.", true);
-    } catch (e) {
-      profileMessage("Could not update photo.", false);
-    }
+      const avatar = await fileToAvatar(f);
+      await setDoc(doc(db, "users", me.uid), { avatar }, { merge: true });
+      me.avatar = avatar; renderHeader();
+      say("photoMsg", "Photo updated.", true);
+    } catch (e) { say("photoMsg", "Could not update photo.", false); }
   };
 
-  $("saveProfileBtn").onclick = async () => {
+  $("saveNameBtn").onclick = async () => {
     const name = $("profName").value.trim();
-    if (!name) return profileMessage("Enter your name.", false);
+    if (!name) return say("profMsg", "Enter your name.", false);
     try {
-      await updateProfile(currentUser, { displayName: name });
-      await setDoc(doc(db, "users", currentUser.uid),
-        { name, email: currentUser.email }, { merge: true });
-      state.name = name;
-      render(name, state.username, currentUser.email, state.avatar);
-      profileMessage("Profile saved.", true);
-    } catch (e) {
-      profileMessage("Could not save: " + (e.code || e.message), false);
+      await updateProfile(auth.currentUser, { displayName: name });
+      await setDoc(doc(db, "users", me.uid), { name, email: me.email }, { merge: true });
+      me.name = name; renderHeader();
+      say("profMsg", "Name saved.", true);
+    } catch (e) { say("profMsg", "Could not save: " + (e.code || e.message), false); }
+  };
+
+  $("saveUserBtn").onclick = async () => {
+    const raw = $("newUsername").value.trim();
+    if (!/^[A-Za-z0-9_.]{3,20}$/.test(raw)) return say("profMsg", "Username: 3-20 letters, numbers, _ or .", false);
+    const lower = raw.toLowerCase();
+    const oldLower = (me.username || "").toLowerCase();
+    try {
+      if (lower !== oldLower) {
+        const taken = await getDoc(doc(db, "usernames", lower));
+        if (taken.exists()) return say("profMsg", "That username is already taken.", false);
+        await setDoc(doc(db, "usernames", lower), { uid: me.uid });
+      }
+      await setDoc(doc(db, "users", me.uid), { username: raw }, { merge: true });
+      if (oldLower && lower !== oldLower) { try { await deleteDoc(doc(db, "usernames", oldLower)); } catch (e) {} }
+      localStorage.setItem("username", raw);
+      me.username = raw; renderHeader();
+      say("profMsg", "Username changed. Your older posts keep the old one.", true);
+    } catch (e) { say("profMsg", "Could not change: " + (e.code || e.message), false); }
+  };
+
+  // Appearance
+  const ACCENTS = ["#6c9bff", "#b388ff", "#5fd394", "#ffb066", "#ff7bb5"];
+  function markAppearance() {
+    const t = localStorage.getItem("theme") || "auto";
+    document.querySelectorAll("#themeChips button").forEach((b) => b.classList.toggle("on", b.dataset.theme === t));
+    const a = localStorage.getItem("accent");
+    document.querySelectorAll("#accentChips button").forEach((b) => b.classList.toggle("on", b.dataset.color === a));
+  }
+  document.querySelectorAll("#themeChips button").forEach((b) => {
+    b.onclick = () => {
+      const t = b.dataset.theme;
+      if (t === "auto") { localStorage.removeItem("theme"); document.documentElement.removeAttribute("data-theme"); }
+      else { localStorage.setItem("theme", t); document.documentElement.setAttribute("data-theme", t); }
+      markAppearance();
+    };
+  });
+  ACCENTS.forEach((c) => {
+    const b = document.createElement("button");
+    b.className = "sw"; b.style.background = c; b.dataset.color = c; b.setAttribute("aria-label", "Accent " + c);
+    b.onclick = () => {
+      localStorage.setItem("accent", c);
+      document.documentElement.style.setProperty("--accent", c);
+      markAppearance();
+    };
+    $("accentChips").appendChild(b);
+  });
+  markAppearance();
+
+  // Blocked users
+  async function renderBlocked() {
+    const box = $("blockedList");
+    if (!me.blocked.length) { box.textContent = "No blocked users."; return; }
+    box.textContent = "";
+    for (const uid of me.blocked) {
+      let name = cache.get(uid);
+      if (!name) {
+        try { const s = await getDoc(doc(db, "users", uid)); name = s.exists() ? (s.data().name || s.data().username || "User") : "User"; }
+        catch (e) { name = "User"; }
+        cache.set(uid, name);
+      }
+      const row = document.createElement("div");
+      row.className = "brow";
+      const n = document.createElement("div");
+      n.className = "grow"; n.style.color = "var(--text)"; n.textContent = name;
+      const ub = document.createElement("button");
+      ub.className = "ghost"; ub.textContent = "Unblock";
+      ub.onclick = async () => {
+        try {
+          await updateDoc(doc(db, "users", me.uid), { blocked: arrayRemove(uid) });
+          me.blocked = me.blocked.filter((x) => x !== uid);
+          renderBlocked();
+        } catch (e) { alert("Could not unblock."); }
+      };
+      row.append(n, ub);
+      box.appendChild(row);
     }
+  }
+
+  // Delete account
+  $("deleteBtn").onclick = async () => {
+    if (!confirm("Delete your account permanently? This cannot be undone.")) return;
+    const pw = prompt("Enter your password to confirm:");
+    if (!pw) return;
+    try {
+      await reauthenticateWithCredential(auth.currentUser, EmailAuthProvider.credential(auth.currentUser.email, pw));
+    } catch (e) { return say("delMsg", "Wrong password.", false); }
+    try {
+      const uid = me.uid;
+      for (const [col, field] of [["posts", "uid"], ["follows", "follower"], ["notifications", "to"]]) {
+        const snap = await getDocs(query(collection(db, col), where(field, "==", uid)));
+        await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+      }
+      if (me.username) { try { await deleteDoc(doc(db, "usernames", me.username.toLowerCase())); } catch (e) {} }
+      await deleteDoc(doc(db, "users", uid));
+      await deleteUser(auth.currentUser);
+      localStorage.removeItem("username");
+      window.location.href = "index.html";
+    } catch (e) { say("delMsg", "Could not delete: " + (e.code || e.message), false); }
   };
 
   $("logoutBtn").onclick = async () => {
@@ -213,6 +359,16 @@
       window.location.href = "index.html";
     } catch (e) { alert("Could not log out. Try again."); }
   };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "index.html"; return; }
+    me = await loadMe(user);
+    watchBadge(user.uid);
+    renderHeader();
+    renderBlocked();
+    $("loading").style.display = "none";
+    $("app").style.display = "block";
+  });
 </script>
 
 </body>

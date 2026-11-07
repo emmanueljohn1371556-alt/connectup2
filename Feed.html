@@ -3,44 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ConnectUp feed</title>
+<title>ConnectUp Feed</title>
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t);var a=localStorage.getItem("accent");if(a)document.documentElement.style.setProperty("--accent",a);}catch(e){}</script>
 <style>
   :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
   @media (prefers-color-scheme: light) {
-    :root { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+    :root:not([data-theme="dark"]) { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
   }
+  :root[data-theme="light"] { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  :root[data-theme="dark"] { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
   * { box-sizing: border-box; }
   body { margin:0; padding-bottom:70px; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
-  header { display:flex; align-items:center; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
   header h1 { font-size:1.15rem; margin:0; }
   main { max-width:640px; margin:0 auto; padding:18px; }
   .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
   textarea, .cinput { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
-  textarea { min-height:90px; resize:vertical; }
+  button { padding:9px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  button.ghost { background:none; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .av { width:42px; height:42px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex-shrink:0; }
+  .muted, .handle, .time { color:var(--muted); font-size:.85rem; }
+  .author { font-weight:600; }
+  .rowline { display:flex; gap:12px; align-items:center; }
+  .grow { flex:1; min-width:0; }
+  #loading, .emptymsg { text-align:center; color:var(--muted); padding:40px 0; }
+  #app { display:none; }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.82rem; }
+  .tabbar a.active { color:var(--accent); font-weight:600; }
+  .badge { position:absolute; top:6px; left:calc(50% + 8px); background:var(--danger); color:#fff; border-radius:10px; font-size:.65rem; padding:1px 5px; display:none; }
+
+  .postimg { max-width:100%; border-radius:10px; margin-top:10px; display:block; }
+  .head { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+  .av { width:38px; height:38px; }
   .row { display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
   #count { color:var(--muted); font-size:.85rem; }
-  button { padding:9px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; }
-  button:disabled { opacity:.5; cursor:default; }
+  textarea { min-height:90px; resize:vertical; }
   .del { background:none; border:none; color:var(--danger); padding:4px 8px; font-size:.85rem; }
   .pill { background:none; border:1px solid var(--border); color:var(--muted); padding:5px 12px; border-radius:20px; font-size:.85rem; margin:10px 8px 0 0; }
   .pill.on { border-color:var(--danger); color:var(--danger); }
-  button:focus-visible, textarea:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
-  .head { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
-  .av { width:38px; height:38px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex-shrink:0; }
-  .who { flex:1; min-width:0; }
-  .author { font-weight:600; }
-  .handle, .time { color:var(--muted); font-size:.85rem; }
+  .seg { display:flex; gap:8px; margin-bottom:14px; }
+  .seg button { flex:1; background:none; color:var(--muted); border:1px solid var(--border); margin:0; }
+  .seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
   .text { white-space:pre-wrap; word-wrap:break-word; line-height:1.45; }
   .comments { margin-top:12px; border-top:1px solid var(--border); padding-top:10px; }
   .comment { padding:6px 0; font-size:.92rem; }
-  .comment b { font-weight:600; }
   .crow { display:flex; gap:8px; margin-top:8px; }
   #status { min-height:1.2em; font-size:.9rem; color:var(--danger); margin-top:8px; }
-  #empty, #loading { text-align:center; color:var(--muted); padding:40px 0; }
-  #app { display:none; }
-  .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
-  .tabbar a { flex:1; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.95rem; }
-  .tabbar a.active { color:var(--accent); font-weight:600; }
 </style>
 </head>
 <body>
@@ -48,36 +59,48 @@
 <div id="loading">Loading…</div>
 
 <div id="app">
-  <header><h1>ConnectUp</h1></header>
+  <header><h1 style="display:flex;align-items:center;gap:8px"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="8" cy="13" r="6" fill="var(--accent)"/><circle cx="18" cy="13" r="6" fill="none" stroke="var(--accent)" stroke-width="2.5"/></svg>ConnectUp</h1></header>
   <main>
     <div class="card">
       <textarea id="postText" maxlength="280" placeholder="What's on your mind?"></textarea>
+      <img id="preview" class="postimg" alt="" style="display:none">
       <div class="row">
         <span id="count">0 / 280</span>
-        <button id="postBtn">Post</button>
+        <span>
+          <input id="photoFile" type="file" accept="image/*" hidden>
+          <button class="ghost" id="photoBtn" type="button">📷 Photo</button>
+          <button id="postBtn">Post</button>
+        </span>
       </div>
       <div id="status"></div>
     </div>
+    <div class="seg">
+      <button id="tabAll" class="on">All</button>
+      <button id="tabFollowing">Following</button>
+    </div>
     <div id="feed"></div>
-    <div id="empty" style="display:none">No posts yet. Be the first!</div>
+    <div id="empty" class="emptymsg" style="display:none"></div>
   </main>
 </div>
 
 <nav class="tabbar">
   <a href="Feed.html" class="active">Feed</a>
+  <a href="Search.html">Search</a>
+  <a href="Messages.html">Chat</a>
+  <a href="Alerts.html">Alerts<span class="badge" id="alertBadge"></span></a>
   <a href="Home.html">Profile</a>
 </nav>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-  import { getAuth, onAuthStateChanged }
+  import { getAuth, onAuthStateChanged, updateProfile, signOut, EmailAuthProvider,
+           reauthenticateWithCredential, deleteUser }
     from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
-  import { initializeFirestore, collection, addDoc, deleteDoc, doc, getDoc,
-           query, orderBy, limit, onSnapshot, updateDoc, arrayUnion, arrayRemove }
+  import { initializeFirestore, collection, addDoc, deleteDoc, doc, getDoc, getDocs, setDoc,
+           updateDoc, query, where, orderBy, limit, onSnapshot, arrayUnion, arrayRemove }
     from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
+  const firebaseConfig = {
   apiKey: "AIzaSyASt_xJLUPi1pFcvN1ZicL1Gj5_x1IuXX8",
   authDomain: "connectup-db617.firebaseapp.com",
   projectId: "connectup-db617",
@@ -92,10 +115,51 @@ const firebaseConfig = {
   const db = initializeFirestore(app, { experimentalForceLongPolling: true });
   const $ = (id) => document.getElementById(id);
 
-  let me = null;
-  let started = false;
-  const openPosts = new Set();
-  let commentUnsubs = [];
+  function watchBadge(uid) {
+    const q = query(collection(db, "notifications"), where("to", "==", uid), where("read", "==", false));
+    onSnapshot(q, (s) => {
+      const b = document.getElementById("alertBadge");
+      if (!b) return;
+      b.textContent = s.size > 9 ? "9+" : s.size;
+      b.style.display = s.size ? "block" : "none";
+    }, () => {});
+  }
+
+  function avatarEl(avatar, name) {
+    if (avatar) {
+      const img = document.createElement("img");
+      img.className = "av"; img.src = avatar; img.alt = "";
+      return img;
+    }
+    const d = document.createElement("div");
+    d.className = "av";
+    d.textContent = (name || "?").charAt(0).toUpperCase();
+    return d;
+  }
+
+  async function loadMe(user) {
+    let name = user.displayName || "";
+    let username = localStorage.getItem("username") || "";
+    let avatar = "";
+    let blocked = [];
+    try {
+      const s = await getDoc(doc(db, "users", user.uid));
+      if (s.exists()) {
+        const d = s.data();
+        name = d.name || name; username = d.username || username; avatar = d.avatar || "";
+        blocked = d.blocked || [];
+      }
+    } catch (e) { console.error(e); }
+    return { uid: user.uid, name, username, avatar, blocked, email: user.email };
+  }
+
+  function notify(me, to, type, postId, text) {
+    if (!to || to === me.uid) return;
+    addDoc(collection(db, "notifications"), {
+      to, from: me.uid, fromName: me.name || me.username || "Someone",
+      type, postId: postId || "", text: text || "", createdAt: Date.now(), read: false
+    }).catch(() => {});
+  }
 
   function timeAgo(ms) {
     if (!ms) return "just now";
@@ -106,31 +170,48 @@ const firebaseConfig = {
     return new Date(ms).toLocaleDateString();
   }
 
-  function avatarEl(avatar, name) {
-    if (avatar) {
-      const img = document.createElement("img");
-      img.className = "av";
-      img.src = avatar;
-      img.alt = "";
-      return img;
-    }
-    const d = document.createElement("div");
-    d.className = "av";
-    d.textContent = (name || "?").charAt(0).toUpperCase();
-    return d;
+  let pendingImage = "";
+  function fileToImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(1, 800 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        let out = c.toDataURL("image/jpeg", 0.7);
+        if (out.length > 350000) out = c.toDataURL("image/jpeg", 0.5);
+        resolve(out);
+      };
+      img.onerror = () => reject(new Error("bad image"));
+      img.src = url;
+    });
   }
+  $("photoBtn").onclick = () => $("photoFile").click();
+  $("photoFile").onchange = async () => {
+    const f = $("photoFile").files[0];
+    if (!f) return;
+    try {
+      pendingImage = await fileToImage(f);
+      if (pendingImage.length > 450000) { pendingImage = ""; $("status").textContent = "That photo is too large."; return; }
+      $("preview").src = pendingImage;
+      $("preview").style.display = "block";
+    } catch (e) { $("status").textContent = "Could not read that photo."; }
+  };
+  let me = null, started = false, mode = "all", followIds = [], postsUnsub = null, gotData = false;
+  const openPosts = new Set();
+  let commentUnsubs = [];
 
-  function buildComments(postId) {
+  function buildComments(postId, ownerUid) {
     const box = document.createElement("div");
     box.className = "comments";
-
     const list = document.createElement("div");
     const row = document.createElement("div");
     row.className = "crow";
     const input = document.createElement("input");
-    input.className = "cinput";
-    input.maxLength = 200;
-    input.placeholder = "Write a comment…";
+    input.className = "cinput"; input.maxLength = 200; input.placeholder = "Write a comment…";
     const send = document.createElement("button");
     send.textContent = "Send";
     row.append(input, send);
@@ -142,20 +223,20 @@ const firebaseConfig = {
       send.disabled = true;
       try {
         await addDoc(collection(db, "posts", postId, "comments"), {
-          uid: me.uid, name: me.name, username: me.username,
-          text, createdAt: Date.now()
+          uid: me.uid, name: me.name, username: me.username, text, createdAt: Date.now()
         });
+        notify(me, ownerUid, "comment", postId, text);
         input.value = "";
       } catch (e) { alert("Could not comment: " + (e.code || e.message)); }
       send.disabled = false;
     };
 
-    const q = query(collection(db, "posts", postId, "comments"),
-                    orderBy("createdAt", "asc"), limit(50));
+    const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"), limit(50));
     commentUnsubs.push(onSnapshot(q, (snap) => {
       list.innerHTML = "";
       snap.forEach((d) => {
         const c = d.data();
+        if (me.blocked.includes(c.uid)) return;
         const line = document.createElement("div");
         line.className = "comment";
         const b = document.createElement("b");
@@ -165,14 +246,13 @@ const firebaseConfig = {
         line.append(b, t);
         if (c.uid === me.uid) {
           const x = document.createElement("button");
-          x.className = "del";
-          x.textContent = "✕";
+          x.className = "del"; x.textContent = "✕";
           x.onclick = () => deleteDoc(doc(db, "posts", postId, "comments", d.id)).catch(() => alert("Could not delete."));
           line.appendChild(x);
         }
         list.appendChild(line);
       });
-    }));
+    }, () => {}));
     return box;
   }
 
@@ -183,7 +263,7 @@ const firebaseConfig = {
     const head = document.createElement("div");
     head.className = "head";
     const who = document.createElement("div");
-    who.className = "who";
+    who.className = "grow";
     const author = document.createElement("span");
     author.className = "author";
     author.textContent = p.name || p.username || "User";
@@ -198,12 +278,10 @@ const firebaseConfig = {
 
     if (p.uid === me.uid) {
       const del = document.createElement("button");
-      del.className = "del";
-      del.textContent = "Delete";
+      del.className = "del"; del.textContent = "Delete";
       del.onclick = async () => {
         if (!confirm("Delete this post?")) return;
-        try { await deleteDoc(doc(db, "posts", id)); }
-        catch (e) { alert("Could not delete."); }
+        try { await deleteDoc(doc(db, "posts", id)); } catch (e) { alert("Could not delete."); }
       };
       head.appendChild(del);
     }
@@ -219,9 +297,8 @@ const firebaseConfig = {
     likeBtn.textContent = (liked ? "♥ " : "♡ ") + likes.length;
     likeBtn.onclick = async () => {
       try {
-        await updateDoc(doc(db, "posts", id), {
-          likedBy: liked ? arrayRemove(me.uid) : arrayUnion(me.uid)
-        });
+        await updateDoc(doc(db, "posts", id), { likedBy: liked ? arrayRemove(me.uid) : arrayUnion(me.uid) });
+        if (!liked) notify(me, p.uid, "like", id, p.text);
       } catch (e) { alert("Like failed: " + (e.code || e.message)); }
     };
 
@@ -229,53 +306,94 @@ const firebaseConfig = {
     cBtn.className = "pill";
     cBtn.textContent = "💬 Comments";
     let cBox = null;
-    const toggle = () => {
-      if (cBox) {
-        cBox.remove(); cBox = null; openPosts.delete(id);
-      } else {
-        cBox = buildComments(id); card.appendChild(cBox); openPosts.add(id);
-      }
+    cBtn.onclick = () => {
+      if (cBox) { cBox.remove(); cBox = null; openPosts.delete(id); }
+      else { cBox = buildComments(id, p.uid); card.appendChild(cBox); openPosts.add(id); }
     };
-    cBtn.onclick = toggle;
 
-    card.append(head, text, likeBtn, cBtn);
-    if (openPosts.has(id)) { cBox = buildComments(id); card.appendChild(cBox); }
+    card.append(head, text);
+    if (p.image) {
+      const im = document.createElement("img");
+      im.className = "postimg"; im.src = p.image; im.alt = "Photo";
+      card.appendChild(im);
+    }
+    card.append(likeBtn, cBtn);
+    if (p.uid !== me.uid) {
+      const rep = document.createElement("button");
+      rep.className = "del"; rep.textContent = "Report";
+      rep.onclick = async () => {
+        const reason = prompt("Why are you reporting this post?");
+        if (!reason) return;
+        try {
+          await addDoc(collection(db, "reports"), { reporter: me.uid, postId: id, postUid: p.uid, reason: reason.slice(0, 200), createdAt: Date.now() });
+          alert("Thanks, your report was sent.");
+        } catch (e) { alert("Could not send the report."); }
+      };
+      const blk = document.createElement("button");
+      blk.className = "del"; blk.textContent = "Block";
+      blk.onclick = async () => {
+        if (!confirm("Block " + (p.name || p.username || "this user") + "? You will no longer see their posts.")) return;
+        try {
+          await updateDoc(doc(db, "users", me.uid), { blocked: arrayUnion(p.uid) });
+          me.blocked.push(p.uid);
+          subscribePosts();
+        } catch (e) { alert("Could not block: " + (e.code || e.message)); }
+      };
+      card.append(rep, blk);
+    }
+    if (openPosts.has(id)) { cBox = buildComments(id, p.uid); card.appendChild(cBox); }
     return card;
   }
 
-  function startfeed() {
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(50));
-    onSnapshot(q, (snap) => {
+  function subscribePosts() {
+    if (postsUnsub) postsUnsub();
+    let q;
+    if (mode === "all") {
+      q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(50));
+    } else {
+      const ids = [me.uid, ...followIds].slice(0, 30);
+      q = query(collection(db, "posts"), where("uid", "in", ids), limit(100));
+    }
+    postsUnsub = onSnapshot(q, (snap) => {
       gotData = true;
       $("status").textContent = "";
       commentUnsubs.forEach((u) => u());
       commentUnsubs = [];
+      const docs = snap.docs.map((d) => ({ id: d.id, data: d.data() })).filter((d) => !me.blocked.includes(d.data.uid));
+      if (mode !== "all") docs.sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
       const feed = $("feed");
       feed.innerHTML = "";
-      snap.forEach((d) => feed.appendChild(renderPost(d.id, d.data())));
-      $("empty").style.display = snap.empty ? "block" : "none";
+      docs.slice(0, 50).forEach((d) => feed.appendChild(renderPost(d.id, d.data)));
+      const empty = $("empty");
+      empty.textContent = mode === "all" ? "No posts yet. Be the first!" : "No posts yet. Follow people in Search to see their posts here.";
+      empty.style.display = docs.length ? "none" : "block";
     }, (err) => {
       $("status").textContent = "Could not load posts: " + err.code;
     });
   }
 
+  function startFeed() {
+    setTimeout(() => { if (!gotData) $("status").textContent = "Still connecting to the database…"; }, 8000);
+    onSnapshot(query(collection(db, "follows"), where("follower", "==", me.uid)), (s) => {
+      followIds = s.docs.map((d) => d.data().following);
+      if (mode === "following") subscribePosts();
+    }, () => {});
+    subscribePosts();
+  }
+
+  function setMode(m) {
+    mode = m;
+    $("tabAll").classList.toggle("on", m === "all");
+    $("tabFollowing").classList.toggle("on", m === "following");
+    subscribePosts();
+  }
+  $("tabAll").onclick = () => setMode("all");
+  $("tabFollowing").onclick = () => setMode("following");
+
   onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = "index.html"; return; }
-
-    let name = user.displayName || "";
-    let username = localStorage.getItem("username") || "";
-    let avatar = "";
-    try {
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (snap.exists()) {
-        const d = snap.data();
-        name = d.name || name;
-        username = d.username || username;
-        avatar = d.avatar || "";
-      }
-    } catch (e) { console.error(e); }
-
-    me = { uid: user.uid, name, username, avatar };
+    me = await loadMe(user);
+    watchBadge(user.uid);
     $("loading").style.display = "none";
     $("app").style.display = "block";
     if (!started) { started = true; startFeed(); }
@@ -288,13 +406,16 @@ const firebaseConfig = {
   $("postBtn").onclick = async () => {
     const text = $("postText").value.trim();
     $("status").textContent = "";
-    if (!text) { $("status").textContent = "Write something first."; return; }
+    if (!text && !pendingImage) { $("status").textContent = "Write something or add a photo first."; return; }
     $("postBtn").disabled = true;
     try {
       await addDoc(collection(db, "posts"), {
         uid: me.uid, name: me.name, username: me.username,
-        avatar: me.avatar || "", text, likedBy: [], createdAt: Date.now()
+        avatar: me.avatar || "", text, image: pendingImage || "", likedBy: [], createdAt: Date.now()
       });
+      pendingImage = "";
+      $("preview").style.display = "none";
+      $("photoFile").value = "";
       $("postText").value = "";
       $("count").textContent = "0 / 280";
     } catch (e) {
