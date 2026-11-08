@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConnectUp Feed</title>
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t);var a=localStorage.getItem("accent");if(a)document.documentElement.style.setProperty("--accent",a);}catch(e){}</script>
+<style>
+  :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  }
+  :root[data-theme="light"] { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  :root[data-theme="dark"] { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding-bottom:70px; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+  header h1 { font-size:1.15rem; margin:0; }
+  main { max-width:640px; margin:0 auto; padding:18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  textarea, .cinput { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+  button { padding:9px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  button.ghost { background:none; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .av { width:42px; height:42px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex-shrink:0; }
+  .muted, .handle, .time { color:var(--muted); font-size:.85rem; }
+  .author { font-weight:600; }
+  .rowline { display:flex; gap:12px; align-items:center; }
+  .grow { flex:1; min-width:0; }
+  #loading, .emptymsg { text-align:center; color:var(--muted); padding:40px 0; }
+  #app { display:none; }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.72rem; }
+  .tabbar a.active { color:var(--accent); font-weight:600; }
+  .badge { position:absolute; top:6px; left:calc(50% + 8px); background:var(--danger); color:#fff; border-radius:10px; font-size:.65rem; padding:1px 5px; display:none; }
+
+  .stories { display:flex; gap:12px; overflow-x:auto; padding:4px 2px 14px; }
+  .story { background:none; border:none; padding:0; color:var(--text); width:64px; flex-shrink:0; text-align:center; }
+  .scircle { width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--surface); border:2px solid var(--border); font-size:1.3rem; overflow:hidden; margin:0 auto; color:var(--text); }
+  .scircle.ring { border:3px solid var(--accent); }
+  .scircle img { width:100%; height:100%; object-fit:cover; }
+  .slabel { font-size:.72rem; color:var(--muted); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .viewer { position:fixed; inset:0; background:#000; z-index:50; color:#fff; }
+  .vbars { position:absolute; top:10px; left:10px; right:10px; display:flex; gap:4px; z-index:3; }
+  .vbars div { flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,.35); }
+  .vbars div.done { background:#fff; }
+  .vhead { position:absolute; top:22px; left:12px; right:12px; display:flex; justify-content:space-between; align-items:center; z-index:3; font-weight:600; }
+  .vx { background:rgba(0,0,0,.45); color:#fff; border:none; padding:6px 12px; margin-left:8px; }
+  .vbody { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#000; }
+  .vbody img { max-width:100%; max-height:100%; }
+  .vtext { position:absolute; left:16px; right:16px; bottom:70px; text-align:center; font-size:1.25rem; text-shadow:0 1px 6px rgba(0,0,0,.8); white-space:pre-wrap; word-wrap:break-word; }
+  .vtap { position:absolute; top:70px; bottom:0; width:50%; z-index:2; }
+  .vtap.l { left:0; } .vtap.r { right:0; }
+  .vid { position:relative; width:100%; padding-top:56.25%; margin-top:10px; border-radius:10px; overflow:hidden; background:#000; }
+  .vid iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .postimg { max-width:100%; border-radius:10px; margin-top:10px; display:block; }
+  .head { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+  .av { width:38px; height:38px; }
+  .row { display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+  #count { color:var(--muted); font-size:.85rem; }
+  textarea { min-height:90px; resize:vertical; }
+  .del { background:none; border:none; color:var(--danger); padding:4px 8px; font-size:.85rem; }
+  .pill { background:none; border:1px solid var(--border); color:var(--muted); padding:5px 12px; border-radius:20px; font-size:.85rem; margin:10px 8px 0 0; }
+  .pill.on { border-color:var(--danger); color:var(--danger); }
+  .seg { display:flex; gap:8px; margin-bottom:14px; }
+  .seg button { flex:1; background:none; color:var(--muted); border:1px solid var(--border); margin:0; }
+  .seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .text { white-space:pre-wrap; word-wrap:break-word; line-height:1.45; }
+  .comments { margin-top:12px; border-top:1px solid var(--border); padding-top:10px; }
+  .comment { padding:6px 0; font-size:.92rem; }
+  .crow { display:flex; gap:8px; margin-top:8px; }
+  #status { min-height:1.2em; font-size:.9rem; color:var(--danger); margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading…</div>
+
+<div id="app">
+  <header><h1 style="display:flex;align-items:center;gap:8px"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="8" cy="13" r="6" fill="var(--accent)"/><circle cx="18" cy="13" r="6" fill="none" stroke="var(--accent)" stroke-width="2.5"/></svg>ConnectUp</h1></header>
+  <main>
+    <div id="stories" class="stories"></div>
+    <input id="storyFile" type="file" accept="image/*" hidden>
+    <div class="card">
+      <textarea id="postText" maxlength="280" placeholder="What's on your mind?"></textarea>
+      <img id="preview" class="postimg" alt="" style="display:none">
+      <div id="videoChip" class="muted" style="display:none;margin-top:8px;cursor:pointer"></div>
+      <div class="row">
+        <span id="count">0 / 280</span>
+        <span>
+          <input id="photoFile" type="file" accept="image/*" hidden>
+          <button class="ghost" id="videoBtn" type="button">🎬 Video</button>
+          <button class="ghost" id="photoBtn" type="button">📷 Photo</button>
+          <button id="postBtn">Post</button>
+        </span>
+      </div>
+      <div id="status"></div>
+    </div>
+    <div class="seg">
+      <button id="tabAll" class="on">All</button>
+      <button id="tabFollowing">Following</button>
+    </div>
+    <div id="feed"></div>
+    <div id="empty" class="emptymsg" style="display:none"></div>
+  </main>
+  <div id="viewer" class="viewer" style="display:none">
+    <div class="vbars" id="vbars"></div>
+    <div class="vhead"><span id="vname"></span><span><button class="vx" id="vdel" style="display:none">Delete</button><button class="vx" id="vclose">✕</button></span></div>
+    <div class="vbody" id="vbody"><img id="vimg" alt="" style="display:none"><div id="vtext" class="vtext"></div></div>
+    <div class="vtap l" id="vprev"></div><div class="vtap r" id="vnext"></div>
+  </div>
+</div>
+
+<nav class="tabbar">
+  <a href="Feed.html" class="active">Feed</a>
+  <a href="Search.html">Search</a>
+  <a href="Groups.html">Groups</a>
+  <a href="Messages.html">Chat</a>
+  <a href="Alerts.html">Alerts<span class="badge" id="alertBadge"></span></a>
+  <a href="Home.html">Profile</a>
+</nav>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, updateProfile, signOut, EmailAuthProvider,
+           reauthenticateWithCredential, deleteUser }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+  import { initializeFirestore, collection, addDoc, deleteDoc, doc, getDoc, getDocs, setDoc,
+           updateDoc, query, where, orderBy, limit, onSnapshot, arrayUnion, arrayRemove }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyASt_xJLUPi1pFcvN1ZicL1Gj5_x1IuXX8",
+  authDomain: "connectup-db617.firebaseapp.com",
+  projectId: "connectup-db617",
+  storageBucket: "connectup-db617.firebasestorage.app",
+  messagingSenderId: "174771443294",
+  appId: "1:174771443294:web:28dcb5d14491e717a286cf",
+  measurementId: "G-YMRMYF20D7"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  const $ = (id) => document.getElementById(id);
+
+  function watchBadge(uid) {
+    const q = query(collection(db, "notifications"), where("to", "==", uid), where("read", "==", false));
+    onSnapshot(q, (s) => {
+      const b = document.getElementById("alertBadge");
+      if (!b) return;
+      b.textContent = s.size > 9 ? "9+" : s.size;
+      b.style.display = s.size ? "block" : "none";
+    }, () => {});
+  }
+
+  function avatarEl(avatar, name) {
+    if (avatar) {
+      const img = document.createElement("img");
+      img.className = "av"; img.src = avatar; img.alt = "";
+      return img;
+    }
+    const d = document.createElement("div");
+    d.className = "av";
+    d.textContent = (name || "?").charAt(0).toUpperCase();
+    return d;
+  }
+
+  async function loadMe(user) {
+    let name = user.displayName || "";
+    let username = localStorage.getItem("username") || "";
+    let avatar = "";
+    let blocked = [];
+    let bio = "";
+    try {
+      const s = await getDoc(doc(db, "users", user.uid));
+      if (s.exists()) {
+        const d = s.data();
+        name = d.name || name; username = d.username || username; avatar = d.avatar || "";
+        blocked = d.blocked || []; bio = d.bio || "";
+      }
+    } catch (e) { console.error(e); }
+    return { uid: user.uid, name, username, avatar, blocked, bio, email: user.email };
+  }
+
+  function notify(me, to, type, postId, text) {
+    if (!to || to === me.uid) return;
+    addDoc(collection(db, "notifications"), {
+      to, from: me.uid, fromName: me.name || me.username || "Someone",
+      type, postId: postId || "", text: text || "", createdAt: Date.now(), read: false
+    }).catch(() => {});
+  }
+
+  function timeAgo(ms) {
+    if (!ms) return "just now";
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return new Date(ms).toLocaleDateString();
+  }
+
+  let pendingVideo = "";
+  function parseVideo(u) {
+    u = (u || "").trim();
+    let m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if (m) return "https://www.youtube.com/embed/" + m[1];
+    m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (m) return "https://player.vimeo.com/video/" + m[1];
+    return "";
+  }
+  $("videoBtn").onclick = () => {
+    const u = prompt("Paste a YouTube or Vimeo link:");
+    if (!u) return;
+    const v = parseVideo(u);
+    if (!v) { $("status").textContent = "Only YouTube and Vimeo links work for now."; return; }
+    pendingVideo = v;
+    $("videoChip").textContent = "🎬 Video attached (tap to remove)";
+    $("videoChip").style.display = "block";
+  };
+  $("videoChip").onclick = () => { pendingVideo = ""; $("videoChip").style.display = "none"; };
+
+  let pendingImage = "";
+  function fileToImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(1, 800 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        let out = c.toDataURL("image/jpeg", 0.7);
+        if (out.length > 350000) out = c.toDataURL("image/jpeg", 0.5);
+        resolve(out);
+      };
+      img.onerror = () => reject(new Error("bad image"));
+      img.src = url;
+    });
+  }
+  $("photoBtn").onclick = () => $("photoFile").click();
+  $("photoFile").onchange = async () => {
+    const f = $("photoFile").files[0];
+    if (!f) return;
+    try {
+      pendingImage = await fileToImage(f);
+      if (pendingImage.length > 450000) { pendingImage = ""; $("status").textContent = "That photo is too large."; return; }
+      $("preview").src = pendingImage;
+      $("preview").style.display = "block";
+    } catch (e) { $("status").textContent = "Could not read that photo."; }
+  };
+  let me = null, started = false, mode = "all", followIds = [], postsUnsub = null, gotData = false;
+  const openPosts = new Set();
+  let commentUnsubs = [];
+
+  function buildComments(postId, ownerUid) {
+    const box = document.createElement("div");
+    box.className = "comments";
+    const list = document.createElement("div");
+    const row = document.createElement("div");
+    row.className = "crow";
+    const input = document.createElement("input");
+    input.className = "cinput"; input.maxLength = 200; input.placeholder = "Write a comment…";
+    const send = document.createElement("button");
+    send.textContent = "Send";
+    row.append(input, send);
+    box.append(list, row);
+
+    send.onclick = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      send.disabled = true;
+      try {
+        await addDoc(collection(db, "posts", postId, "comments"), {
+          uid: me.uid, name: me.name, username: me.username, text, createdAt: Date.now()
+        });
+        notify(me, ownerUid, "comment", postId, text);
+        input.value = "";
+      } catch (e) { alert("Could not comment: " + (e.code || e.message)); }
+      send.disabled = false;
+    };
+
+    const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"), limit(50));
+    commentUnsubs.push(onSnapshot(q, (snap) => {
+      list.innerHTML = "";
+      snap.forEach((d) => {
+        const c = d.data();
+        if (me.blocked.includes(c.uid)) return;
+        const line = document.createElement("div");
+        line.className = "comment";
+        const b = document.createElement("b");
+        b.textContent = (c.name || c.username || "User") + " ";
+        const t = document.createElement("span");
+        t.textContent = c.text;
+        line.append(b, t);
+        if (c.uid === me.uid) {
+          const x = document.createElement("button");
+          x.className = "del"; x.textContent = "✕";
+          x.onclick = () => deleteDoc(doc(db, "posts", postId, "comments", d.id)).catch(() => alert("Could not delete."));
+          line.appendChild(x);
+        }
+        list.appendChild(line);
+      });
+    }, () => {}));
+    return box;
+  }
+
+  function renderPost(id, p) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const head = document.createElement("div");
+    head.className = "head";
+    const who = document.createElement("div");
+    who.className = "grow";
+    const author = document.createElement("a");
+    author.href = "Profile.html?u=" + encodeURIComponent(p.uid);
+    author.style.cssText = "color:inherit;text-decoration:none";
+    author.className = "author";
+    author.textContent = p.name || p.username || "User";
+    const handle = document.createElement("span");
+    handle.className = "handle";
+    handle.textContent = p.username ? "  @" + p.username : "";
+    const time = document.createElement("div");
+    time.className = "time";
+    time.textContent = timeAgo(p.createdAt);
+    who.append(author, handle, time);
+    head.append(avatarEl(p.avatar, p.name || p.username), who);
+
+    if (p.uid === me.uid) {
+      const del = document.createElement("button");
+      del.className = "del"; del.textContent = "Delete";
+      del.onclick = async () => {
+        if (!confirm("Delete this post?")) return;
+        try { await deleteDoc(doc(db, "posts", id)); } catch (e) { alert("Could not delete."); }
+      };
+      head.appendChild(del);
+    }
+
+    const text = document.createElement("div");
+    text.className = "text";
+    text.textContent = p.text;
+
+    const likes = p.likedBy || [];
+    const liked = likes.includes(me.uid);
+    const likeBtn = document.createElement("button");
+    likeBtn.className = "pill" + (liked ? " on" : "");
+    likeBtn.textContent = (liked ? "♥ " : "♡ ") + likes.length;
+    likeBtn.onclick = async () => {
+      try {
+        await updateDoc(doc(db, "posts", id), { likedBy: liked ? arrayRemove(me.uid) : arrayUnion(me.uid) });
+        if (!liked) notify(me, p.uid, "like", id, p.text);
+      } catch (e) { alert("Like failed: " + (e.code || e.message)); }
+    };
+
+    const cBtn = document.createElement("button");
+    cBtn.className = "pill";
+    cBtn.textContent = "💬 Comments";
+    let cBox = null;
+    cBtn.onclick = () => {
+      if (cBox) { cBox.remove(); cBox = null; openPosts.delete(id); }
+      else { cBox = buildComments(id, p.uid); card.appendChild(cBox); openPosts.add(id); }
+    };
+
+    card.append(head, text);
+    if (p.image) {
+      const im = document.createElement("img");
+      im.className = "postimg"; im.src = p.image; im.alt = "Photo";
+      card.appendChild(im);
+    }
+    if (p.video && /^https:\/\/(www\.youtube\.com\/embed\/|player\.vimeo\.com\/video\/)/.test(p.video)) {
+      const wrap = document.createElement("div");
+      wrap.className = "vid";
+      const fr = document.createElement("iframe");
+      fr.src = p.video; fr.loading = "lazy"; fr.allowFullscreen = true;
+      fr.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+      fr.setAttribute("allow", "accelerometer; encrypted-media; gyroscope; picture-in-picture");
+      wrap.appendChild(fr);
+      card.appendChild(wrap);
+    }
+    card.append(likeBtn, cBtn);
+    if (p.uid !== me.uid) {
+      const rep = document.createElement("button");
+      rep.className = "del"; rep.textContent = "Report";
+      rep.onclick = async () => {
+        const reason = prompt("Why are you reporting this post?");
+        if (!reason) return;
+        try {
+          await addDoc(collection(db, "reports"), { reporter: me.uid, postId: id, postUid: p.uid, reason: reason.slice(0, 200), createdAt: Date.now() });
+          alert("Thanks, your report was sent.");
+        } catch (e) { alert("Could not send the report."); }
+      };
+      const blk = document.createElement("button");
+      blk.className = "del"; blk.textContent = "Block";
+      blk.onclick = async () => {
+        if (!confirm("Block " + (p.name || p.username || "this user") + "? You will no longer see their posts.")) return;
+        try {
+          await updateDoc(doc(db, "users", me.uid), { blocked: arrayUnion(p.uid) });
+          me.blocked.push(p.uid);
+          subscribePosts();
+        } catch (e) { alert("Could not block: " + (e.code || e.message)); }
+      };
+      card.append(rep, blk);
+    }
+    if (openPosts.has(id)) { cBox = buildComments(id, p.uid); card.appendChild(cBox); }
+    return card;
+  }
+
+  function subscribePosts() {
+    if (postsUnsub) postsUnsub();
+    let q;
+    if (mode === "all") {
+      q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(50));
+    } else {
+      const ids = [me.uid, ...followIds].slice(0, 30);
+      q = query(collection(db, "posts"), where("uid", "in", ids), limit(100));
+    }
+    postsUnsub = onSnapshot(q, (snap) => {
+      gotData = true;
+      $("status").textContent = "";
+      commentUnsubs.forEach((u) => u());
+      commentUnsubs = [];
+      const docs = snap.docs.map((d) => ({ id: d.id, data: d.data() })).filter((d) => !me.blocked.includes(d.data.uid));
+      if (mode !== "all") docs.sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+      const feed = $("feed");
+      feed.innerHTML = "";
+      docs.slice(0, 50).forEach((d) => feed.appendChild(renderPost(d.id, d.data)));
+      const empty = $("empty");
+      empty.textContent = mode === "all" ? "No posts yet. Be the first!" : "No posts yet. Follow people in Search to see their posts here.";
+      empty.style.display = docs.length ? "none" : "block";
+    }, (err) => {
+      $("status").textContent = "Could not load posts: " + err.code;
+    });
+  }
+
+  function startFeed() {
+    setTimeout(() => { if (!gotData) $("status").textContent = "Still connecting to the database…"; }, 8000);
+    onSnapshot(query(collection(db, "follows"), where("follower", "==", me.uid)), (s) => {
+      followIds = s.docs.map((d) => d.data().following);
+      if (mode === "following") subscribePosts();
+    }, () => {});
+    subscribePosts();
+  }
+
+  function setMode(m) {
+    mode = m;
+    $("tabAll").classList.toggle("on", m === "all");
+    $("tabFollowing").classList.toggle("on", m === "following");
+    subscribePosts();
+  }
+  $("tabAll").onclick = () => setMode("all");
+  $("tabFollowing").onclick = () => setMode("following");
+
+  // ---------- Stories ----------
+  let storyGroups = new Map(), storyTimer = null, vUid = null, vIdx = 0;
+  const DAY = 24 * 60 * 60 * 1000;
+
+  function storyItem(inner, label, onclick, ring) {
+    const b = document.createElement("button");
+    b.className = "story";
+    const c = document.createElement("div");
+    c.className = "scircle" + (ring ? " ring" : "");
+    if (typeof inner === "string") c.textContent = inner; else c.appendChild(inner);
+    const l = document.createElement("div");
+    l.className = "slabel"; l.textContent = label;
+    b.append(c, l);
+    b.onclick = onclick;
+    return b;
+  }
+
+  function renderStories() {
+    const box = $("stories");
+    box.innerHTML = "";
+    box.appendChild(storyItem("＋", "Photo", () => $("storyFile").click(), false));
+    box.appendChild(storyItem("Aa", "Text", textStory, false));
+    const uids = [...storyGroups.keys()].sort((a, b) => (a === me.uid ? -1 : b === me.uid ? 1 : 0));
+    uids.forEach((uid) => {
+      const arr = storyGroups.get(uid);
+      const first = arr[arr.length - 1];
+      const av = first.avatar ? Object.assign(document.createElement("img"), { src: first.avatar, alt: "" }) : (first.name || "?").charAt(0).toUpperCase();
+      box.appendChild(storyItem(av, uid === me.uid ? "Your story" : (first.name || first.username || "User"), () => openStory(uid, 0), true));
+    });
+  }
+
+  function startStories() {
+    const cutoff = Date.now() - DAY;
+    onSnapshot(query(collection(db, "stories"), where("createdAt", ">", cutoff), orderBy("createdAt", "asc"), limit(100)), (snap) => {
+      storyGroups = new Map();
+      snap.docs.forEach((d) => {
+        const st = { id: d.id, ...d.data() };
+        if (me.blocked.includes(st.uid)) return;
+        if (!storyGroups.has(st.uid)) storyGroups.set(st.uid, []);
+        storyGroups.get(st.uid).push(st);
+      });
+      renderStories();
+    }, () => { renderStories(); });
+    renderStories();
+  }
+
+  function closeStory() {
+    clearTimeout(storyTimer);
+    $("viewer").style.display = "none";
+  }
+
+  function openStory(uid, idx) {
+    clearTimeout(storyTimer);
+    const arr = storyGroups.get(uid);
+    if (!arr || idx < 0 || idx >= arr.length) { closeStory(); return; }
+    vUid = uid; vIdx = idx;
+    const st = arr[idx];
+    $("viewer").style.display = "block";
+    $("vname").textContent = st.name || st.username || "User";
+    const bars = $("vbars");
+    bars.innerHTML = "";
+    arr.forEach((_, i) => { const b = document.createElement("div"); if (i <= idx) b.className = "done"; bars.appendChild(b); });
+    const img = $("vimg");
+    if (st.image) { img.src = st.image; img.style.display = "block"; $("vbody").style.background = "#000"; }
+    else { img.style.display = "none"; $("vbody").style.background = "linear-gradient(135deg, var(--accent), #ff1493)"; }
+    $("vtext").textContent = st.text || "";
+    $("vdel").style.display = st.uid === me.uid ? "inline-block" : "none";
+    $("vdel").onclick = async () => {
+      if (!confirm("Delete this story?")) return;
+      try { await deleteDoc(doc(db, "stories", st.id)); } catch (e) { alert("Could not delete."); }
+      closeStory();
+    };
+    storyTimer = setTimeout(() => openStory(uid, idx + 1), 5000);
+  }
+  $("vclose").onclick = closeStory;
+  $("vnext").onclick = () => openStory(vUid, vIdx + 1);
+  $("vprev").onclick = () => openStory(vUid, vIdx - 1);
+
+  async function postStory(image, text) {
+    try {
+      await addDoc(collection(db, "stories"), {
+        uid: me.uid, name: me.name, username: me.username, avatar: me.avatar || "",
+        image: image || "", text: (text || "").slice(0, 200), createdAt: Date.now()
+      });
+    } catch (e) { alert("Could not post story: " + (e.code || e.message)); }
+  }
+  function textStory() {
+    const t = prompt("Write your story (max 200 characters):");
+    if (t && t.trim()) postStory("", t.trim());
+  }
+  $("storyFile").onchange = async () => {
+    const f = $("storyFile").files[0];
+    if (!f) return;
+    try {
+      const img = await fileToImage(f);
+      if (img.length > 450000) { alert("That photo is too large."); return; }
+      const cap = prompt("Add a caption (optional):") || "";
+      await postStory(img, cap);
+    } catch (e) { alert("Could not read that photo."); }
+    $("storyFile").value = "";
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "index.html"; return; }
+    me = await loadMe(user);
+    watchBadge(user.uid);
+    $("loading").style.display = "none";
+    $("app").style.display = "block";
+    if (!started) { started = true; startFeed(); startStories(); }
+  });
+
+  $("postText").addEventListener("input", () => {
+    $("count").textContent = $("postText").value.length + " / 280";
+  });
+
+  $("postBtn").onclick = async () => {
+    const text = $("postText").value.trim();
+    $("status").textContent = "";
+    if (!text && !pendingImage && !pendingVideo) { $("status").textContent = "Write something or add a photo first."; return; }
+    $("postBtn").disabled = true;
+    try {
+      await addDoc(collection(db, "posts"), {
+        uid: me.uid, name: me.name, username: me.username,
+        avatar: me.avatar || "", text, image: pendingImage || "", video: pendingVideo || "", likedBy: [], createdAt: Date.now()
+      });
+      pendingVideo = ""; $("videoChip").style.display = "none";
+      pendingImage = "";
+      $("preview").style.display = "none";
+      $("photoFile").value = "";
+      $("postText").value = "";
+      $("count").textContent = "0 / 280";
+    } catch (e) {
+      $("status").textContent = "Could not post: " + (e.code || e.message);
+    }
+    $("postBtn").disabled = false;
+  };
+</script>
+
+</body>
+</html>
