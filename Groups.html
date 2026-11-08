@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConnectUp Groups</title>
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t);var a=localStorage.getItem("accent");if(a)document.documentElement.style.setProperty("--accent",a);}catch(e){}</script>
+<style>
+  :root { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  }
+  :root[data-theme="light"] { --bg:#f3f6fb; --surface:#fff; --text:#14213d; --muted:#5b6b86; --accent:#2457d6; --border:#dbe3f0; --danger:#c62f2f; }
+  :root[data-theme="dark"] { --bg:#0f1624; --surface:#182236; --text:#e8eefb; --muted:#9aaac4; --accent:#6c9bff; --border:#2a3855; --danger:#ff7b7b; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding-bottom:70px; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+  header h1 { font-size:1.15rem; margin:0; }
+  main { max-width:640px; margin:0 auto; padding:18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  textarea, .cinput { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+  button { padding:9px 16px; border-radius:8px; font-size:.95rem; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  button.ghost { background:none; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .av { width:42px; height:42px; border-radius:50%; object-fit:cover; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex-shrink:0; }
+  .muted, .handle, .time { color:var(--muted); font-size:.85rem; }
+  .author { font-weight:600; }
+  .rowline { display:flex; gap:12px; align-items:center; }
+  .grow { flex:1; min-width:0; }
+  #loading, .emptymsg { text-align:center; color:var(--muted); padding:40px 0; }
+  #app { display:none; }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.72rem; }
+  .tabbar a.active { color:var(--accent); font-weight:600; }
+  .badge { position:absolute; top:6px; left:calc(50% + 8px); background:var(--danger); color:#fff; border-radius:10px; font-size:.65rem; padding:1px 5px; display:none; }
+
+  .gcard { cursor:pointer; }
+  .gname { font-weight:700; font-size:1.05rem; }
+  .row3 { display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+  .post .time { margin-bottom:4px; }
+  .text { white-space:pre-wrap; word-wrap:break-word; line-height:1.45; }
+  .del { background:none; border:none; color:var(--danger); padding:4px 8px; font-size:.85rem; }
+  .tag { font-size:.72rem; border:1px solid var(--border); border-radius:10px; padding:1px 8px; color:var(--muted); margin-left:6px; }
+  .mrow { display:flex; align-items:center; gap:10px; padding:5px 0; }
+  .mrow .av { width:32px; height:32px; font-size:.85rem; }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading…</div>
+
+<div id="app">
+  <header><h1 id="gtitle">Groups</h1></header>
+  <main>
+    <div id="listView">
+      <div class="card">
+        <h3 style="margin:0 0 8px">Create a group</h3>
+        <input id="newName" class="cinput" maxlength="40" placeholder="Group name (3-40 characters)">
+        <textarea id="newDesc" class="cinput" maxlength="140" rows="2" placeholder="What is this group about?" style="margin-top:8px"></textarea>
+        <button id="createBtn" style="margin-top:10px">Create group</button>
+        <p class="muted" id="createMsg"></p>
+      </div>
+      <div id="glist"></div>
+      <div id="gnone" class="emptymsg" style="display:none">No groups yet. Create the first one!</div>
+    </div>
+    <div id="groupView" style="display:none">
+      <button class="ghost" id="gback">← All groups</button>
+      <div class="card" style="margin-top:10px">
+        <h2 style="margin:0" id="gname"></h2>
+        <div class="muted" id="gdesc" style="margin-top:4px"></div>
+        <div class="muted" id="gcount" style="margin-top:4px"></div>
+        <div class="row3" id="gbtns"></div>
+      </div>
+      <div class="card" id="compose" style="display:none">
+        <textarea id="gpost" maxlength="500" placeholder="Share something with the group…"></textarea>
+        <div class="row3"><span class="muted" id="gcc">0 / 500</span><button id="gpostBtn" style="margin-left:auto">Post</button></div>
+        <p class="muted" id="gmsg"></p>
+      </div>
+      <div id="gposts"></div>
+      <div id="gpnone" class="emptymsg" style="display:none">No posts yet.</div>
+      <div class="card"><h3 style="margin:0 0 8px">Members</h3><div id="gmembers"></div></div>
+    </div>
+  </main>
+</div>
+
+<nav class="tabbar">
+  <a href="Feed.html">Feed</a>
+  <a href="Search.html">Search</a>
+  <a href="Groups.html" class="active">Groups</a>
+  <a href="Messages.html">Chat</a>
+  <a href="Alerts.html">Alerts<span class="badge" id="alertBadge"></span></a>
+  <a href="Home.html">Profile</a>
+</nav>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, updateProfile, signOut, EmailAuthProvider,
+           reauthenticateWithCredential, deleteUser }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+  import { initializeFirestore, collection, addDoc, deleteDoc, doc, getDoc, getDocs, setDoc,
+           updateDoc, query, where, orderBy, limit, onSnapshot, arrayUnion, arrayRemove }
+    from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyASt_xJLUPi1pFcvN1ZicL1Gj5_x1IuXX8",
+  authDomain: "connectup-db617.firebaseapp.com",
+  projectId: "connectup-db617",
+  storageBucket: "connectup-db617.firebasestorage.app",
+  messagingSenderId: "174771443294",
+  appId: "1:174771443294:web:28dcb5d14491e717a286cf",
+  measurementId: "G-YMRMYF20D7"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  const $ = (id) => document.getElementById(id);
+
+  function watchBadge(uid) {
+    const q = query(collection(db, "notifications"), where("to", "==", uid), where("read", "==", false));
+    onSnapshot(q, (s) => {
+      const b = document.getElementById("alertBadge");
+      if (!b) return;
+      b.textContent = s.size > 9 ? "9+" : s.size;
+      b.style.display = s.size ? "block" : "none";
+    }, () => {});
+  }
+
+  function avatarEl(avatar, name) {
+    if (avatar) {
+      const img = document.createElement("img");
+      img.className = "av"; img.src = avatar; img.alt = "";
+      return img;
+    }
+    const d = document.createElement("div");
+    d.className = "av";
+    d.textContent = (name || "?").charAt(0).toUpperCase();
+    return d;
+  }
+
+  async function loadMe(user) {
+    let name = user.displayName || "";
+    let username = localStorage.getItem("username") || "";
+    let avatar = "";
+    let blocked = [];
+    let bio = "";
+    try {
+      const s = await getDoc(doc(db, "users", user.uid));
+      if (s.exists()) {
+        const d = s.data();
+        name = d.name || name; username = d.username || username; avatar = d.avatar || "";
+        blocked = d.blocked || []; bio = d.bio || "";
+      }
+    } catch (e) { console.error(e); }
+    return { uid: user.uid, name, username, avatar, blocked, bio, email: user.email };
+  }
+
+  function notify(me, to, type, postId, text) {
+    if (!to || to === me.uid) return;
+    addDoc(collection(db, "notifications"), {
+      to, from: me.uid, fromName: me.name || me.username || "Someone",
+      type, postId: postId || "", text: text || "", createdAt: Date.now(), read: false
+    }).catch(() => {});
+  }
+
+  function timeAgo(ms) {
+    if (!ms) return "just now";
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return new Date(ms).toLocaleDateString();
+  }
+
+  let me = null, current = null, gposts = [];
+  const cache = new Map();
+  const gid = new URLSearchParams(location.search).get("g");
+
+  async function getUser(uid) {
+    if (cache.has(uid)) return cache.get(uid);
+    let u = { uid, name: "User", username: "", avatar: "" };
+    try {
+      const s = await getDoc(doc(db, "users", uid));
+      if (s.exists()) { const d = s.data(); u = { uid, name: d.name || d.username || "User", username: d.username || "", avatar: d.avatar || "" }; }
+    } catch (e) {}
+    cache.set(uid, u);
+    return u;
+  }
+
+  // ----- list view -----
+  function renderList(groups) {
+    const list = $("glist");
+    list.innerHTML = "";
+    groups.sort((a, b) => (b.members || []).length - (a.members || []).length);
+    groups.forEach((g) => {
+      const card = document.createElement("div");
+      card.className = "card gcard";
+      const n = document.createElement("div");
+      n.className = "gname"; n.textContent = g.name;
+      const dsc = document.createElement("div");
+      dsc.className = "muted"; dsc.textContent = g.description || "";
+      const c = document.createElement("div");
+      c.className = "muted"; c.style.marginTop = "6px";
+      const member = (g.members || []).includes(me.uid);
+      c.textContent = (g.members || []).length + " members" + (member ? " · You joined" : "");
+      card.append(n, dsc, c);
+      card.onclick = () => { window.location.href = "Groups.html?g=" + encodeURIComponent(g.id); };
+      list.appendChild(card);
+    });
+    $("gnone").style.display = groups.length ? "none" : "block";
+  }
+
+  $("createBtn").onclick = async () => {
+    const name = $("newName").value.trim();
+    const description = $("newDesc").value.trim();
+    if (name.length < 3) { $("createMsg").textContent = "Group name needs at least 3 characters."; return; }
+    $("createBtn").disabled = true;
+    try {
+      const ref = await addDoc(collection(db, "groups"), {
+        name, description, ownerUid: me.uid, ownerName: me.name || me.username,
+        admins: [me.uid], members: [me.uid], createdAt: Date.now()
+      });
+      window.location.href = "Groups.html?g=" + encodeURIComponent(ref.id);
+    } catch (e) { $("createMsg").textContent = "Could not create: " + (e.code || e.message); $("createBtn").disabled = false; }
+  };
+
+  // ----- group view -----
+  function isAdminHere() { return current && (current.admins || []).includes(me.uid); }
+
+  async function renderMembers() {
+    const box = $("gmembers");
+    const members = (current.members || []).slice(0, 40);
+    const users = await Promise.all(members.map(getUser));
+    box.innerHTML = "";
+    users.forEach((u) => {
+      const row = document.createElement("div");
+      row.className = "mrow";
+      const a = document.createElement("a");
+      a.href = "Profile.html?u=" + encodeURIComponent(u.uid);
+      a.style.cssText = "color:inherit;text-decoration:none";
+      a.className = "grow"; a.textContent = u.name;
+      if (u.uid === current.ownerUid) { const t = document.createElement("span"); t.className = "tag"; t.textContent = "Owner"; a.appendChild(t); }
+      else if ((current.admins || []).includes(u.uid)) { const t = document.createElement("span"); t.className = "tag"; t.textContent = "Admin"; a.appendChild(t); }
+      row.append(avatarEl(u.avatar, u.name), a);
+      const targetIsAdmin = (current.admins || []).includes(u.uid);
+      const iAmOwner = current.ownerUid === me.uid;
+      if (iAmOwner && u.uid !== me.uid) {
+        const b = document.createElement("button");
+        b.className = "ghost"; b.style.padding = "4px 10px"; b.textContent = targetIsAdmin ? "Remove admin" : "Make admin";
+        b.onclick = async () => {
+          try { await updateDoc(doc(db, "groups", current.id), { admins: targetIsAdmin ? arrayRemove(u.uid) : arrayUnion(u.uid) }); }
+          catch (e) { alert("Could not update: " + (e.code || e.message)); }
+        };
+        row.appendChild(b);
+      }
+      if (isAdminHere() && u.uid !== me.uid && u.uid !== current.ownerUid && (iAmOwner || !targetIsAdmin)) {
+        const k = document.createElement("button");
+        k.className = "ghost"; k.style.cssText = "padding:4px 10px;color:var(--danger);border-color:var(--danger)"; k.textContent = "Remove";
+        k.onclick = async () => {
+          if (!confirm("Remove " + u.name + " from the group? They will not be able to rejoin.")) return;
+          const data = { members: arrayRemove(u.uid), removed: arrayUnion(u.uid) };
+          if (targetIsAdmin) data.admins = arrayRemove(u.uid);
+          try { await updateDoc(doc(db, "groups", current.id), data); }
+          catch (e) { alert("Could not remove: " + (e.code || e.message)); }
+        };
+        row.appendChild(k);
+      }
+      box.appendChild(row);
+    });
+  }
+
+  function renderGroup() {
+    $("gtitle").textContent = "Group";
+    $("gname").textContent = current.name;
+    $("gdesc").textContent = current.description || "";
+    $("gcount").textContent = (current.members || []).length + " members · " + (current.admins || []).length + " admin(s) · created by " + (current.ownerName || "someone") + (isAdminHere() ? " · you are an admin" : "");
+    const member = (current.members || []).includes(me.uid);
+    const btns = $("gbtns");
+    btns.innerHTML = "";
+    if (!member && (current.removed || []).includes(me.uid)) {
+      const r = document.createElement("div");
+      r.className = "muted"; r.textContent = "You were removed from this group by an admin.";
+      btns.appendChild(r);
+    } else if (!member) {
+      const j = document.createElement("button");
+      j.textContent = "Join group";
+      j.onclick = async () => { try { await updateDoc(doc(db, "groups", current.id), { members: arrayUnion(me.uid) }); } catch (e) { alert("Could not join: " + (e.code || e.message)); } };
+      btns.appendChild(j);
+    } else if (current.ownerUid !== me.uid) {
+      const l = document.createElement("button");
+      l.className = "ghost"; l.textContent = "Leave group";
+      l.onclick = async () => { if (!confirm("Leave this group?")) return; try { await updateDoc(doc(db, "groups", current.id), { members: arrayRemove(me.uid) }); } catch (e) { alert("Could not leave."); } };
+      btns.appendChild(l);
+    }
+    if (isAdminHere()) {
+      const ed = document.createElement("button");
+      ed.className = "ghost"; ed.textContent = "Edit group info";
+      ed.onclick = async () => {
+        const name = prompt("Group name (3-40 characters):", current.name);
+        if (name === null) return;
+        if (name.trim().length < 3 || name.trim().length > 40) { alert("The name needs 3-40 characters."); return; }
+        const description = prompt("Description (max 140 characters):", current.description || "");
+        if (description === null) return;
+        try { await updateDoc(doc(db, "groups", current.id), { name: name.trim(), description: description.trim().slice(0, 140) }); }
+        catch (e) { alert("Could not save: " + (e.code || e.message)); }
+      };
+      btns.appendChild(ed);
+    }
+    if (current.ownerUid === me.uid) {
+      const d = document.createElement("button");
+      d.className = "ghost"; d.style.color = "var(--danger)"; d.style.borderColor = "var(--danger)"; d.textContent = "Delete group";
+      d.onclick = async () => {
+        if (!confirm("Delete this group for everyone?")) return;
+        try { await deleteDoc(doc(db, "groups", current.id)); window.location.href = "Groups.html"; } catch (e) { alert("Could not delete."); }
+      };
+      btns.appendChild(d);
+    }
+    $("compose").style.display = member ? "block" : "none";
+    renderMembers();
+    renderPosts();
+  }
+
+  function renderPosts() {
+    const box = $("gposts");
+    box.innerHTML = "";
+    const list = gposts.filter((p) => !me.blocked.includes(p.uid))
+      .sort((a, b) => (b.id === current.pinned) - (a.id === current.pinned));
+    list.forEach((p) => {
+      const card = document.createElement("div");
+      card.className = "card post";
+      const head = document.createElement("div");
+      head.className = "rowline";
+      const who = document.createElement("div");
+      who.className = "grow";
+      const a = document.createElement("a");
+      a.className = "author"; a.href = "Profile.html?u=" + encodeURIComponent(p.uid);
+      a.style.cssText = "color:inherit;text-decoration:none"; a.textContent = p.name || p.username || "User";
+      const tm = document.createElement("div");
+      tm.className = "time"; tm.textContent = timeAgo(p.createdAt);
+      if (p.id === current.pinned) { const pt = document.createElement("span"); pt.className = "tag"; pt.textContent = "📌 Pinned"; a.appendChild(pt); }
+      who.append(a, tm);
+      head.append(avatarEl(p.avatar, p.name || p.username), who);
+      if (isAdminHere()) {
+        const pin = document.createElement("button");
+        pin.className = "del"; pin.style.color = "var(--muted)"; pin.textContent = p.id === current.pinned ? "Unpin" : "Pin";
+        pin.onclick = async () => { try { await updateDoc(doc(db, "groups", current.id), { pinned: p.id === current.pinned ? "" : p.id }); } catch (e) { alert("Could not pin."); } };
+        head.appendChild(pin);
+      }
+      if (p.uid === me.uid || isAdminHere()) {
+        const x = document.createElement("button");
+        x.className = "del"; x.textContent = "Delete";
+        x.onclick = async () => { if (!confirm("Delete this post?")) return; try { await deleteDoc(doc(db, "groups", current.id, "posts", p.id)); } catch (e) { alert("Could not delete."); } };
+        head.appendChild(x);
+      }
+      const t = document.createElement("div");
+      t.className = "text"; t.style.marginTop = "8px"; t.textContent = p.text;
+      card.append(head, t);
+      box.appendChild(card);
+    });
+    $("gpnone").style.display = list.length ? "none" : "block";
+  }
+
+  $("gpost").addEventListener("input", () => { $("gcc").textContent = $("gpost").value.length + " / 500"; });
+  $("gpostBtn").onclick = async () => {
+    const text = $("gpost").value.trim();
+    if (!text) return;
+    $("gpostBtn").disabled = true;
+    try {
+      await addDoc(collection(db, "groups", current.id, "posts"), {
+        uid: me.uid, name: me.name, username: me.username, avatar: me.avatar || "", text, createdAt: Date.now()
+      });
+      $("gpost").value = ""; $("gcc").textContent = "0 / 500"; $("gmsg").textContent = "";
+    } catch (e) { $("gmsg").textContent = "Could not post: " + (e.code || e.message); }
+    $("gpostBtn").disabled = false;
+  };
+  $("gback").onclick = () => { window.location.href = "Groups.html"; };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "index.html"; return; }
+    me = await loadMe(user);
+    watchBadge(user.uid);
+    $("loading").style.display = "none";
+    $("app").style.display = "block";
+    if (gid) {
+      $("listView").style.display = "none";
+      $("groupView").style.display = "block";
+      onSnapshot(doc(db, "groups", gid), (s) => {
+        if (!s.exists()) { $("gname").textContent = "Group not found"; $(

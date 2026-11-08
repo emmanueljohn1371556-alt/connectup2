@@ -31,7 +31,7 @@
   #loading, .emptymsg { text-align:center; color:var(--muted); padding:40px 0; }
   #app { display:none; }
   .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
-  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.82rem; }
+  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.72rem; }
   .tabbar a.active { color:var(--accent); font-weight:600; }
   .badge { position:absolute; top:6px; left:calc(50% + 8px); background:var(--danger); color:#fff; border-radius:10px; font-size:.65rem; padding:1px 5px; display:none; }
 
@@ -69,6 +69,7 @@
 <nav class="tabbar">
   <a href="Feed.html">Feed</a>
   <a href="Search.html">Search</a>
+  <a href="Groups.html">Groups</a>
   <a href="Messages.html" class="active">Chat</a>
   <a href="Alerts.html">Alerts<span class="badge" id="alertBadge"></span></a>
   <a href="Home.html">Profile</a>
@@ -125,15 +126,16 @@
     let username = localStorage.getItem("username") || "";
     let avatar = "";
     let blocked = [];
+    let bio = "";
     try {
       const s = await getDoc(doc(db, "users", user.uid));
       if (s.exists()) {
         const d = s.data();
         name = d.name || name; username = d.username || username; avatar = d.avatar || "";
-        blocked = d.blocked || [];
+        blocked = d.blocked || []; bio = d.bio || "";
       }
     } catch (e) { console.error(e); }
-    return { uid: user.uid, name, username, avatar, blocked, email: user.email };
+    return { uid: user.uid, name, username, avatar, blocked, bio, email: user.email };
   }
 
   function notify(me, to, type, postId, text) {

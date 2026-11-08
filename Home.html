@@ -31,7 +31,7 @@
   #loading, .emptymsg { text-align:center; color:var(--muted); padding:40px 0; }
   #app { display:none; }
   .tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px); }
-  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.82rem; }
+  .tabbar a { flex:1; position:relative; text-align:center; padding:14px 0; color:var(--muted); text-decoration:none; font-size:.72rem; }
   .tabbar a.active { color:var(--accent); font-weight:600; }
   .badge { position:absolute; top:6px; left:calc(50% + 8px); background:var(--danger); color:#fff; border-radius:10px; font-size:.65rem; padding:1px 5px; display:none; }
 
@@ -73,10 +73,17 @@
     </div>
 
     <div class="card">
+      <a id="pubLink" href="Profile.html">View my public profile</a>
+      <div id="adminBox" style="display:none;margin-top:10px"><a href="Admin.html">Admin tools</a></div>
+    </div>
+
+    <div class="card">
       <h3>Edit profile</h3>
       <label for="profName">Full name</label>
       <input id="profName" class="cinput" type="text" autocomplete="name">
-      <button class="row2" id="saveNameBtn">Save name</button>
+      <label for="profBio">Bio (max 160 characters)</label>
+      <textarea id="profBio" class="cinput" maxlength="160" rows="3"></textarea>
+      <button class="row2" id="saveNameBtn">Save name and bio</button>
       <label for="newUsername">Username (letters, numbers, _ and . only)</label>
       <input id="newUsername" class="cinput" type="text" maxlength="20" autocomplete="username">
       <button class="row2" id="saveUserBtn">Change username</button>
@@ -112,6 +119,7 @@
 <nav class="tabbar">
   <a href="Feed.html">Feed</a>
   <a href="Search.html">Search</a>
+  <a href="Groups.html">Groups</a>
   <a href="Messages.html">Chat</a>
   <a href="Alerts.html">Alerts<span class="badge" id="alertBadge"></span></a>
   <a href="Home.html" class="active">Profile</a>
@@ -168,15 +176,16 @@
     let username = localStorage.getItem("username") || "";
     let avatar = "";
     let blocked = [];
+    let bio = "";
     try {
       const s = await getDoc(doc(db, "users", user.uid));
       if (s.exists()) {
         const d = s.data();
         name = d.name || name; username = d.username || username; avatar = d.avatar || "";
-        blocked = d.blocked || [];
+        blocked = d.blocked || []; bio = d.bio || "";
       }
     } catch (e) { console.error(e); }
-    return { uid: user.uid, name, username, avatar, blocked, email: user.email };
+    return { uid: user.uid, name, username, avatar, blocked, bio, email: user.email };
   }
 
   function notify(me, to, type, postId, text) {
@@ -205,6 +214,7 @@
     $("usernameLine").textContent = me.username ? "@" + me.username : "";
     $("emailLine").textContent = me.email || "";
     $("profName").value = me.name || "";
+    $("profBio").value = me.bio || "";
     $("newUsername").value = me.username || "";
     const box = $("avatarBox");
     box.innerHTML = "";
@@ -247,9 +257,10 @@
     if (!name) return say("profMsg", "Enter your name.", false);
     try {
       await updateProfile(auth.currentUser, { displayName: name });
-      await setDoc(doc(db, "users", me.uid), { name, email: me.email }, { merge: true });
-      me.name = name; renderHeader();
-      say("profMsg", "Name saved.", true);
+      const bio = $("profBio").value.trim().slice(0, 160);
+      await setDoc(doc(db, "users", me.uid), { name, bio, email: me.email }, { merge: true });
+      me.name = name; me.bio = bio; renderHeader();
+      say("profMsg", "Profile saved.", true);
     } catch (e) { say("profMsg", "Could not save: " + (e.code || e.message), false); }
   };
 
@@ -366,6 +377,11 @@
     watchBadge(user.uid);
     renderHeader();
     renderBlocked();
+    $("pubLink").href = "Profile.html?u=" + encodeURIComponent(me.uid);
+    try {
+      const a = await getDoc(doc(db, "admins", me.uid));
+      if (a.exists()) $("adminBox").style.display = "block";
+    } catch (e) {}
     $("loading").style.display = "none";
     $("app").style.display = "block";
   });
